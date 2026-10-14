@@ -56,7 +56,7 @@ export function ExecutionPanel({
           <p className="small muted">
             <Link href={`/executions/${detail.execution.execution_id}`}>{detail.execution.execution_id}</Link>
             {", "}
-            {detail.execution.status === "FINALIZED" ? "finalized" : live ? "receiving Ring evidence" : "active"}
+            {detail.execution.status === "FINALIZED" ? "finalized" : live ? "receiving evidence" : "active"}
           </p>
         </div>
         {profile && (

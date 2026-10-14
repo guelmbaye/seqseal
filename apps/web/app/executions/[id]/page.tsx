@@ -113,7 +113,7 @@ export default function ExecutionPage({ params }: { params: Promise<{ id: string
       <div className="panel" style={{ marginTop: 16 }}>
         <div className="panel-head">
           <h2>Expected versus observed</h2>
-          <span className="small muted">Select an observed step to open its Ring evidence</span>
+          <span className="small muted">Select an observed step to open its source evidence</span>
         </div>
         <SequenceLanes expected={ev?.expected_sequence ?? protocol.expected_sequence} labels={protocol.labels} observed={observed} violated={violated} missing={d.execution.status === "FINALIZED" ? missing : []} onSelect={setDrawer} />
       </div>

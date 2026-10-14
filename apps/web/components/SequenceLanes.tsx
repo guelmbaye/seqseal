@@ -98,7 +98,7 @@ export function SequenceLanes({ expected, labels, observed, violated = [], missi
         })}
       </div>
       <p className="lane-label" style={{ marginTop: 4 }}>
-        Observed from Ring evidence
+        Observed from source evidence
       </p>
     </figure>
   );

@@ -49,7 +49,7 @@ export default function WinningMoment() {
       <div className="page-head">
         <div>
           <h1 style={{ maxWidth: "24ch" }}>These two deliveries contain the same events. Only one should be released.</h1>
-          <p>Each execution is evaluated against the same PWPS protocol and the same action policy. Only the physical order of the Ring observations differs.</p>
+          <p>Each execution is evaluated against the same PWPS protocol and the same action policy. Only the physical order of the observations differs.</p>
         </div>
         <div className="btn-row">
           <button className="btn" onClick={runWinningMoment} disabled={busy}>

@@ -48,7 +48,7 @@ export default function Monitor() {
       <div className="page-head">
         <div>
           <h1>Monitor</h1>
-          <p>Executions update as Ring evidence arrives. Demo controls replay source events; they never set a verdict.</p>
+          <p>Executions update as source evidence arrives. Demo controls replay source events; they never set a verdict.</p>
         </div>
         <div className="btn-row">
           {(scenarios ?? []).map((s) => (

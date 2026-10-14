@@ -66,7 +66,7 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
         <dl className="kv" style={{ marginTop: 10 }}>
           <dt>Source profile</dt>
           <dd>{src ? (SOURCE_LABEL[src.source_profile] ?? src.source_profile) : "—"}</dd>
-          <dt>Ring event</dt>
+          <dt>Source event</dt>
           <dd className="mono">{src?.source_event_ref ?? "—"}</dd>
           <dt>Request</dt>
           <dd className="mono">{src?.request_ref ?? "—"}</dd>
