@@ -56,7 +56,7 @@ export class RingApiClient {
     this.fetchImpl = cfg.fetchImpl ?? fetch;
   }
 
-  private async call<T>(method: string, path: string, init: { body?: string | Uint8Array; contentType?: string; accept?: string; binary?: boolean } = {}): Promise<RingApiResponse<T>> {
+  private async call<T>(method: string, path: string, init: { body?: string; contentType?: string; accept?: string; binary?: boolean } = {}): Promise<RingApiResponse<T>> {
     const started = Date.now();
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), this.cfg.timeoutMs ?? 10_000);

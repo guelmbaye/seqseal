@@ -18,8 +18,8 @@ export interface ConfigPaths {
  */
 export function findConfigRoot(start = process.cwd()): string {
   const env = process.env.SEQSEAL_CONFIG_DIR;
-  if (env && existsSync(join(env, "protocols"))) return resolve(env);
-  let dir = resolve(start);
+  if (env && existsSync(join(env, "protocols"))) return resolve(/* turbopackIgnore: true */ env);
+  let dir = resolve(/* turbopackIgnore: true */ start);
   for (;;) {
     if (existsSync(join(dir, "protocols", "inbound-delivery.yaml")) && existsSync(join(dir, "policies"))) return dir;
     const parent = dirname(dir);
