@@ -1,0 +1,15 @@
+{
+  "name": "@seqseal/svc-review-api",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "SEQSEAL Lambda: review-api",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@seqseal/aws": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/pipeline": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+aws_region = "us-east-1"
+
+# Relative to infrastructure/terraform (default => <repo>/services).
+lambda_artifacts_dir = "../../services"
+
+log_retention_days         = 14
+finalization_grace_seconds = 5
+execution_horizon_minutes  = 30
+
+# Bedrock only ever assists media interpretation; verdicts stay deterministic.
+enable_bedrock_evidence = false
+bedrock_model_id        = ""
+
+# Add the origin the web console is served from.
+web_allowed_origins = [
+  "http://localhost:3000",
+  # "https://demo.seqseal.example",
+]
+
+alarm_email = ""
+demo_mode   = true

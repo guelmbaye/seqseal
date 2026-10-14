@@ -1,0 +1,23 @@
+{
+  "name": "@seqseal/aws",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AWS adapters for the SEQSEAL pipeline: DynamoDB document tables, EventBridge sink, S3 artifacts, Secrets Manager, Bedrock evidence interpreter (evidence only), Lambda glue and CloudWatch EMF metrics.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1151.0",
+    "@aws-sdk/client-dynamodb": "^3.1151.0",
+    "@aws-sdk/client-eventbridge": "^3.1151.0",
+    "@aws-sdk/client-s3": "^3.1151.0",
+    "@aws-sdk/client-secrets-manager": "^3.1151.0",
+    "@aws-sdk/lib-dynamodb": "^3.1151.0",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/evidence-model": "workspace:*",
+    "@seqseal/pipeline": "workspace:*",
+    "@seqseal/ring-adapter": "workspace:*"
+  }
+}

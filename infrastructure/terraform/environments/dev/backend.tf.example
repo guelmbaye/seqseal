@@ -1,0 +1,16 @@
+# Optional remote state. Copy to backend.tf, fill in, then `terraform init -migrate-state`.
+# The state bucket must exist beforehand (it is NOT managed by this stack).
+terraform {
+  backend "s3" {
+    bucket  = "REPLACE-ME-terraform-state"
+    key     = "seqseal/dev/terraform.tfstate"
+    region  = "us-east-1"
+    encrypt = true
+
+    # Terraform >= 1.10: native S3 state locking.
+    use_lockfile = true
+
+    # Terraform < 1.10: remove use_lockfile and use a DynamoDB lock table instead.
+    # dynamodb_table = "REPLACE-ME-terraform-locks"
+  }
+}

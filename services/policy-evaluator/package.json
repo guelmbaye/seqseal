@@ -1,0 +1,14 @@
+{
+  "name": "@seqseal/svc-policy-evaluator",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "SEQSEAL Lambda: policy-evaluator",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@seqseal/aws": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/pipeline": "workspace:*"
+  }
+}

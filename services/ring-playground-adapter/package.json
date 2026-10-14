@@ -1,0 +1,16 @@
+{
+  "name": "@seqseal/svc-ring-playground-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "SEQSEAL Lambda: ring-playground-adapter",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@seqseal/aws": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/pipeline": "workspace:*",
+    "@seqseal/ring-adapter": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

@@ -8,3 +8,4 @@ export * from "./replay-verify";
 export * from "./read-model";
 export * from "./config-loader";
 export * from "./local-runtime";
+export * from "./http-api";

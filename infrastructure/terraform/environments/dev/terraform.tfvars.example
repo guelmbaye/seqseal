@@ -1,0 +1,17 @@
+# Copy to terraform.tfvars (git-ignored) and adjust.
+aws_region = "us-east-1"
+
+# Relative to infrastructure/terraform (default => <repo>/services).
+lambda_artifacts_dir = "../../services"
+
+log_retention_days         = 14
+finalization_grace_seconds = 5
+execution_horizon_minutes  = 30
+
+enable_bedrock_evidence = false
+bedrock_model_id        = ""
+
+web_allowed_origins = ["http://localhost:3000"]
+
+alarm_email = ""
+demo_mode   = true

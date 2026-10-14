@@ -1,0 +1,15 @@
+{
+  "name": "@seqseal/svc-ring-ingest",
+  "version": "0.1.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "description": "SEQSEAL Lambda: ring-ingest",
+  "main": "src/index.ts",
+  "dependencies": {
+    "@seqseal/aws": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/pipeline": "workspace:*",
+    "@seqseal/ring-adapter": "workspace:*"
+  }
+}

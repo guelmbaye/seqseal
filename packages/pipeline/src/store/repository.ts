@@ -63,7 +63,8 @@ export class SeqSealStore {
 
   /* ── idempotency ── */
   async claim(key: string, meta: Record<string, unknown> = {}): Promise<boolean> {
-    return this.idem.put({ pk: key, sk: "-", at: new Date().toISOString(), ...meta }, { ifNotExists: true });
+    // expires_at: DynamoDB TTL (idempotency keys are kept 7 days).
+    return this.idem.put({ pk: key, sk: "-", at: new Date().toISOString(), expires_at: Math.floor(Date.now() / 1000) + 7 * 86_400, ...meta }, { ifNotExists: true });
   }
   async isClaimed(key: string): Promise<boolean> {
     return !!(await this.idem.get(key, "-"));
