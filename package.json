@@ -26,7 +26,7 @@
     "demo:headless": "tsx scripts/replay.ts --scenario winning-moment",
     "sign-webhook": "tsx scripts/sign-webhook.ts",
     "hcl:check": "node scripts/check-hcl.mjs",
-    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark --check && pnpm pwps validate protocols/inbound-delivery.yaml"
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark --check && pnpm pwps validate protocols/inbound-delivery.yaml && pnpm build && pnpm hcl:check"
   },
   "devDependencies": {
     "@cdktf/hcl2json": "0.21.0",

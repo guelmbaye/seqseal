@@ -44,7 +44,7 @@ Two families of scenarios define the safety metrics:
 
 ## 3. Results
 
-Run of 2026-10-14 (commit `04627b1`); protocol `IDP-01@1.0.0` (`sha256:6f0ad940…`), policy `IDP-ACTION@1.0.0` (`sha256:adfb18d6…`), engine `seqseal-engine@0.1.0`.
+Run of 2026-10-14 (exact commit recorded at the top of `benchmarks/results/latest.md`); protocol `IDP-01@1.0.0` (`sha256:6f0ad940…`), policy `IDP-ACTION@1.0.0` (`sha256:adfb18d6…`), engine `seqseal-engine@0.1.0`.
 
 | Metric | Result |
 |---|---|

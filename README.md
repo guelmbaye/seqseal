@@ -77,7 +77,7 @@ docs/                   architecture, Ring integration, safety, evaluation, clai
 | `pnpm sign-webhook --url … --secret …` | Send a correctly signed Ring-shaped webhook to a SEQSEAL endpoint |
 | `pnpm build:lambdas` | Bundle the 13 Lambda functions to `services/<name>/dist/<name>.zip` |
 | `pnpm hcl:check` | Parse every Terraform file |
-| `pnpm ci` | Lint, typecheck, tests, benchmark gate, protocol validation |
+| `pnpm verify` | Everything CI runs: lint, typecheck, tests, benchmark gate, protocol validation, builds, Terraform parse |
 
 ## Deploy to AWS
 
