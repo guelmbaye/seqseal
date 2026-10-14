@@ -36,7 +36,7 @@ export function TopBar() {
         <div className="shell-source">
           <span className="source-chip" title={data ? `${data.backend}; protocol ${data.protocol.ref}` : "Connecting"}>
             <span className={`dot${data ? "" : " off"}`} />
-            Ring source{" "}
+            Source{" "}
             <strong>{lastProfile ? (SOURCE_LABEL[lastProfile] ?? lastProfile) : data ? "waiting for observations" : "connecting"}</strong>
           </span>
         </div>

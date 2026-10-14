@@ -10,7 +10,6 @@ export default tseslint.config(
       "**/.next/**",
       "**/next-env.d.ts",
       "infrastructure/**/.terraform/**",
-      "apps/web/**",
       "benchmarks/results/**",
     ],
   },
@@ -25,6 +24,13 @@ export default tseslint.config(
       "@typescript-eslint/no-explicit-any": "error",
       "no-console": "off",
       eqeqeq: ["error", "always"],
+    },
+  },
+  {
+    files: ["apps/web/**/*.{ts,tsx}"],
+    languageOptions: {
+      globals: { ...globals.browser, ...globals.node },
+      parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
   {

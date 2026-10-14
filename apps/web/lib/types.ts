@@ -46,6 +46,6 @@ export const SOURCE_LABEL: Record<string, string> = {
   RING_PLAYGROUND: "Ring Developer Playground",
   RING_WEBHOOK: "Ring webhook",
   RING_STAGING: "Ring staging",
-  FIXTURE_REPLAY: "Ring-shaped fixture replay",
+  FIXTURE_REPLAY: "Test fixture (Ring-shaped replay)",
   CUSTOM_MEDIA: "Custom demo media (not Ring)",
 };

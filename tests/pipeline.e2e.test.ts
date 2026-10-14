@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildRingWebhookEnvelope, computeRingSignature } from "@seqseal/ring-adapter";
-import { LocalRuntime, ReadModel, verifyReceiptHash } from "@seqseal/pipeline";
+import { LocalRuntime, ReadModel, redactForLog, verifyReceiptHash } from "@seqseal/pipeline";
 
 const root = join(__dirname, "..");
 const scenario = (name: string) => JSON.parse(readFileSync(join(root, "fixtures/scenarios", `${name}.json`), "utf8"));
@@ -120,5 +120,22 @@ describe("finalization, amendments and receipts", () => {
     const status = await rm.status();
     expect(status.protocol.ref).toBe("IDP-01@1.0.0");
     expect(status.policy.mappings).toEqual({ SEALED: "RELEASE", DEVIATED: "HOLD", INCOMPLETE: "WAIT", UNCERTAIN: "REVIEW" });
+  });
+});
+
+describe("log redaction", () => {
+  it("masks secret-looking fields and bearer tokens, keeps identifiers", () => {
+    const out = redactForLog({
+      execution_id: "EXEC-0001",
+      headers: { Authorization: "Bearer abc.def.ghijklmnop", "X-Signature": "sha256=00ff" },
+      ring_access_token: "t0k3n",
+      note: "retry with Bearer abcdefghijklmnop failed",
+      nested: [{ client_secret: "s" }],
+    }) as Record<string, unknown>;
+    expect(out.execution_id).toBe("EXEC-0001");
+    expect(out.headers).toEqual({ Authorization: "[redacted]", "X-Signature": "[redacted]" });
+    expect(out.ring_access_token).toBe("[redacted]");
+    expect(out.note).toBe("retry with Bearer [redacted] failed");
+    expect(out.nested).toEqual([{ client_secret: "[redacted]" }]);
   });
 });

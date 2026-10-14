@@ -80,9 +80,25 @@ export interface Logger {
 }
 
 export const silentLogger: Logger = { info() {}, warn() {}, error() {} };
+const SENSITIVE_KEY = /(token|secret|password|authorization|signature|api[_-]?key|cookie)/i;
+const BEARER = /\b(Bearer)\s+[A-Za-z0-9._~+/=-]{8,}/g;
+
+/** Recursively mask secret-looking fields and bearer tokens before anything reaches the logs. */
+export function redactForLog(value: unknown, depth = 0): unknown {
+  if (depth > 6) return "[depth]";
+  if (typeof value === "string") return value.replace(BEARER, "$1 [redacted]");
+  if (Array.isArray(value)) return value.map((v) => redactForLog(v, depth + 1));
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([k, v]) => [k, SENSITIVE_KEY.test(k) ? "[redacted]" : redactForLog(v, depth + 1)]),
+    );
+  }
+  return value;
+}
+
 export const jsonLogger = (service: string): Logger => {
   const log = (level: string) => (msg: string, fields: Record<string, unknown> = {}) =>
-    console.log(JSON.stringify({ level, service, msg, ...fields, ts: new Date().toISOString() }));
+    console.log(JSON.stringify({ level, service, msg, ...(redactForLog(fields) as Record<string, unknown>), ts: new Date().toISOString() }));
   return { info: log("info"), warn: log("warn"), error: log("error") };
 };
 
