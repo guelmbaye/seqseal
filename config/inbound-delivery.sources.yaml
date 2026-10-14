@@ -1,0 +1,110 @@
+# Source bindings & deterministic evidence mappings for the inbound receiving lane.
+#
+# This is DEPLOYMENT CONFIGURATION, not protocol: it binds Ring devices/components
+# (or Playground capture sessions) to SEQSEAL logical zones, and maps observations
+# in those zones to candidate workflow states. PWPS never sees any of this.
+#
+# Device refs below are placeholders for the deployed site; replace them with the
+# real device ids returned by GET /v1/devices after account linking. Playground
+# bindings use the zone declared by the operator when a capture session starts
+# (docs/RING_INTEGRATION.md §Playground) — disclosed in the evidence drawer.
+version: "1.0.0"
+lane: inbound-receiving
+protocol: IDP-01
+
+bindings:
+  # ── Ring webhook / staging (real devices) and fixture replay ───────────────
+  - binding_id: BIND-ENTRY
+    description: Camera covering the receiving entry (vehicle arrivals)
+    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_device_ref: ring-device-entry
+    logical_zone: receiving-entry
+  - binding_id: BIND-STAGING
+    description: Camera over the staging area
+    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_device_ref: ring-device-staging
+    logical_zone: staging
+  - binding_id: BIND-STORAGE
+    description: Camera over the storage-transition aisle
+    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_device_ref: ring-device-storage
+    logical_zone: storage-transition
+  - binding_id: BIND-EXIT
+    description: Doorbell camera at the receiving exit (vehicle departure; button = dock clear)
+    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_device_ref: ring-device-exit
+    logical_zone: receiving-exit
+
+  # ── Ring Developer Playground (simulated live-view sources) ────────────────
+  # The Playground offers Package / Vehicle / Motion simulations. The operator
+  # declares which logical zone a capture session represents; the binding is
+  # matched on that declared zone and the simulation source.
+  - binding_id: BIND-PG-ENTRY
+    source_profiles: [RING_PLAYGROUND]
+    session_zone: receiving-entry
+    logical_zone: receiving-entry
+  - binding_id: BIND-PG-STAGING
+    source_profiles: [RING_PLAYGROUND]
+    session_zone: staging
+    logical_zone: staging
+  - binding_id: BIND-PG-STORAGE
+    source_profiles: [RING_PLAYGROUND]
+    session_zone: storage-transition
+    logical_zone: storage-transition
+  - binding_id: BIND-PG-EXIT
+    source_profiles: [RING_PLAYGROUND]
+    session_zone: receiving-exit
+    logical_zone: receiving-exit
+
+mappings:
+  # Ring webhooks: motion_detected.subType is an open vocabulary (human, vehicle,
+  # package_delivery, other_motion, motion, …) — a signal, never a business state.
+  - mapping_id: MAP-ARRIVAL
+    when: { event_type: [motion_detected], event_subtype: [vehicle], logical_zone: receiving-entry }
+    state: arrival
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-STAGING
+    when: { event_type: [motion_detected], event_subtype: [package_delivery, human, motion], logical_zone: staging }
+    state: staging
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-STAGING-AI
+    description: Unclassified motion in staging needs semantic interpretation (AI proposes, never decides).
+    when: { event_type: [motion_detected], event_subtype: [other_motion], logical_zone: staging }
+    state: staging
+    interpretation_mode: AI_ASSISTED
+  - mapping_id: MAP-STORAGE
+    when: { event_type: [motion_detected], event_subtype: [human, motion, package_delivery], logical_zone: storage-transition }
+    state: storage
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-DEPARTURE
+    when: { event_type: [motion_detected], event_subtype: [vehicle], logical_zone: receiving-exit }
+    state: departure
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-CLEAR
+    description: Dock attendant presses the exit doorbell button once the dock is clear.
+    when: { event_type: [button_press], logical_zone: receiving-exit }
+    state: clear
+    interpretation_mode: CONFIGURED_MAPPING
+
+  # Ring Developer Playground simulated sources (contextual reuse, Doc 04 §44 option A)
+  - mapping_id: MAP-PG-ARRIVAL
+    when: { event_type: [live_view_simulation], simulation_source: [VEHICLE], logical_zone: receiving-entry }
+    state: arrival
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-PG-STAGING
+    when: { event_type: [live_view_simulation], simulation_source: [PACKAGE], logical_zone: staging }
+    state: staging
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-PG-STORAGE
+    when: { event_type: [live_view_simulation], simulation_source: [MOTION, PACKAGE], logical_zone: storage-transition }
+    state: storage
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-PG-DEPARTURE
+    when: { event_type: [live_view_simulation], simulation_source: [VEHICLE], logical_zone: receiving-exit }
+    state: departure
+    interpretation_mode: CONFIGURED_MAPPING
+  - mapping_id: MAP-PG-CLEAR
+    description: Operator-declared Motion session on the exit camera signals the dock returned to clear.
+    when: { event_type: [live_view_simulation], simulation_source: [MOTION], logical_zone: receiving-exit }
+    state: clear
+    interpretation_mode: CONFIGURED_MAPPING

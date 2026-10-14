@@ -1,0 +1,20 @@
+{
+  "scenario_id": "b08-source-outage",
+  "label": "Staging camera offline during the window where STAGING was expected",
+  "category": "uncertain",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+1m", "type": "device_offline", "device": "ring-device-staging" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+10m", "type": "device_online", "device": "ring-device-staging" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": {
+    "verdict": "UNCERTAIN",
+    "action": "REVIEW",
+    "supported": false,
+    "notes": "Missing STAGING while its source was offline cannot be interpreted as absence (not INCOMPLETE)."
+  }
+}

@@ -1,0 +1,7 @@
+pwps: "0.1"
+protocol: { id: "BAD-DUPSTATE", version: "1.0.0", name: "Duplicate state" }
+states:
+  - { id: a, required: true }
+  - { id: a, required: true, terminal: true }
+constraints:
+  - { id: REQ-A, operator: REQUIRED, state: a }

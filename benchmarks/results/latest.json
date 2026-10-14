@@ -1,0 +1,1445 @@
+{
+  "benchmark": "seqseal-benchmark@0.1.0",
+  "generated_at": "2026-10-14T13:03:03.387Z",
+  "commit": null,
+  "protocol": {
+    "ref": "IDP-01@1.0.0",
+    "hash": "sha256:6f0ad940aa34c2821ff9b20c841ec5243a5f2f22b5b1adf61924ccca2da20d65"
+  },
+  "action_policy": {
+    "ref": "IDP-ACTION@1.0.0",
+    "hash": "sha256:adfb18d6283f7fbb1b48ba9a6432f18e3fec6f342e2db175d8727360bfab7191"
+  },
+  "engine_version": "seqseal-engine@0.1.0",
+  "interpreter": "mock-evidence-interpreter@1 (deterministic fixture hints)",
+  "scenarios": [
+    {
+      "id": "B01",
+      "scenario_id": "correct-sequence",
+      "label": "Execution A — Correct Sequence",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "action_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B02",
+      "scenario_id": "wrong-sequence",
+      "label": "Execution B — Reordered Sequence",
+      "category": "deviated",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "ORDER-02",
+        "supported": false,
+        "action_events": {
+          "WorkflowHeld": 1,
+          "WorkflowReleased": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "ORDER-02",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B03",
+      "scenario_id": "b03-temporal-violation",
+      "label": "Temporal violation — STAGING 8 min after ARRIVAL (limit 7 min)",
+      "category": "deviated",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "TEMP-01",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "TEMP-01",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B04",
+      "scenario_id": "missing-evidence",
+      "label": "Execution C — Missing Evidence",
+      "category": "incomplete",
+      "supported": false,
+      "expected": {
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "supported": false,
+        "action_events": {
+          "WorkflowReleased": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "workflow_status": "WAITING",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B05",
+      "scenario_id": "ambiguous-evidence",
+      "label": "Execution D — Ambiguous Evidence",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false,
+        "action_events": {
+          "WorkflowReleased": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B06",
+      "scenario_id": "b06-duplicate-events",
+      "label": "Duplicate Ring deliveries and re-sent events do not duplicate evidence or actions",
+      "category": "idempotency",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "action_events": {
+          "WorkflowReleased": 1
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B07",
+      "scenario_id": "b07-network-reordering",
+      "label": "Network delivery order differs from physical order (STORAGE received first)",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "action_events": {
+          "WorkflowHeld": 0,
+          "WorkflowReleased": 1
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B08",
+      "scenario_id": "b08-source-outage",
+      "label": "Staging camera offline during the window where STAGING was expected",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false,
+        "notes": "Missing STAGING while its source was offline cannot be interpreted as absence (not INCOMPLETE)."
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B09",
+      "scenario_id": "b09-equal-timestamps",
+      "label": "STAGING and STORAGE timestamps indistinguishable",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B10",
+      "scenario_id": "b10-unknown-event-noise",
+      "label": "Unknown future Ring event type is stored but never becomes a workflow state",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B11",
+      "scenario_id": "b11-invalid-signature",
+      "label": "Valid-looking Ring webhooks with an invalid X-Signature",
+      "category": "security",
+      "supported": false,
+      "expected": {
+        "supported": false,
+        "no_execution": true,
+        "notes": "401 for every delivery; zero observations, zero evidence, zero workflow impact."
+      },
+      "observed": {
+        "executions": 0,
+        "verdict": null,
+        "action": null,
+        "workflow_status": null,
+        "primary_rule": null,
+        "receipts": 0,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {},
+        "system_errors": [],
+        "evidence_count": 0
+      },
+      "replay": {
+        "receipts": 0,
+        "consistent": 0
+      },
+      "provenance": {
+        "evidence": 0,
+        "traceable": 0
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B11b",
+      "scenario_id": "b11b-valid-signature",
+      "label": "Signed Ring webhooks (RING_WEBHOOK profile) pass HMAC verification end to end",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B12",
+      "scenario_id": "b12-bedrock-unavailable",
+      "label": "AI interpretation required for STAGING but the model is unavailable",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false,
+        "action_events": {
+          "WorkflowReleased": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B13",
+      "scenario_id": "b13-ai-malformed-output",
+      "label": "Model output tries to add verdict/release fields — strict schema rejects it",
+      "category": "adversarial",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false,
+        "action_events": {
+          "WorkflowReleased": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B13b",
+      "scenario_id": "b13b-scene-text-injection",
+      "label": "Scene text tries to make the model invent a different workflow state",
+      "category": "adversarial",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B16",
+      "scenario_id": "b16-engine-failure",
+      "label": "Sequence Integrity Engine throws — system error, never a semantic verdict",
+      "category": "failure",
+      "supported": false,
+      "expected": {
+        "supported": false,
+        "system_error": "ENGINE_ERROR",
+        "notes": "No evaluation, no decision; receiving workflow never RELEASED."
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": null,
+        "action": null,
+        "workflow_status": "PENDING",
+        "primary_rule": null,
+        "receipts": 0,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 0
+        },
+        "system_errors": [
+          "ENGINE_ERROR"
+        ],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 0,
+        "consistent": 0
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B17",
+      "scenario_id": "b17-gate-failure",
+      "label": "Operational Gate fails after a valid RELEASE decision — receipt must not claim RELEASED",
+      "category": "failure",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "supported": true,
+        "system_error": "GATE_ERROR",
+        "notes": "Verdict SEALED and a RELEASE decision exist, but the action was never applied: no WorkflowReleased, no receipt claiming RELEASED."
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": null,
+        "workflow_status": "PENDING",
+        "primary_rule": null,
+        "receipts": 0,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 0
+        },
+        "system_errors": [
+          "GATE_ERROR"
+        ],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 0,
+        "consistent": 0
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B18",
+      "scenario_id": "b18-late-event-before-finalization",
+      "label": "STAGING delivered late (after DEPARTURE) but occurred before STORAGE",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "action_events": {
+          "WorkflowHeld": 0,
+          "WorkflowReleased": 1
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B19",
+      "scenario_id": "b19-late-event-after-finalization",
+      "label": "Late STAGING evidence after finalization creates an amendment (Receipt v2), never a silent rewrite",
+      "category": "amendment",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "ORDER-02",
+        "supported": false,
+        "receipt_versions": 2,
+        "notes": "Receipt v1 (INCOMPLETE → WAIT) is preserved; v2 supersedes it after the late evidence proves ORDER-02 failed."
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "ORDER-02",
+        "receipts": 2,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 2,
+        "consistent": 2
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B20",
+      "scenario_id": "b20-correlation-ambiguity",
+      "label": "A second independent ARRIVAL while an execution is active",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B21",
+      "scenario_id": "b21-ai-supported-high",
+      "label": "AI-assisted STAGING evidence, SUPPORTED/HIGH, accepted by the evidence acceptance policy",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B22",
+      "scenario_id": "b22-duplicate-wrong-order",
+      "label": "Wrong order with duplicate deliveries — exactly one WorkflowHeld",
+      "category": "idempotency",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "ORDER-02",
+        "supported": false,
+        "action_events": {
+          "WorkflowHeld": 1
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "ORDER-02",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B23",
+      "scenario_id": "b23-review-confirm",
+      "label": "Human reviewer confirms ambiguous STAGING evidence → deterministic re-evaluation → amendment",
+      "category": "review",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "receipt_versions": 2,
+        "notes": "REVIEW receipt v1 is preserved; the reviewer acted on evidence (no force-release), the engine re-ran and v2 records RELEASE."
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 2,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 2,
+        "consistent": 2
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B24",
+      "scenario_id": "b24-review-reject",
+      "label": "Human reviewer rejects ambiguous STAGING evidence → STAGING absent → INCOMPLETE",
+      "category": "review",
+      "supported": false,
+      "expected": {
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "supported": false,
+        "receipt_versions": 2
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "workflow_status": "WAITING",
+        "primary_rule": null,
+        "receipts": 2,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 2
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 2,
+        "consistent": 2
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B25",
+      "scenario_id": "b25-send-time-fallback",
+      "label": "STAGING without physical timestamp — send-time fallback (±30 s) cannot order it against STORAGE 20 s later",
+      "category": "uncertain",
+      "supported": false,
+      "expected": {
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "UNCERTAIN",
+        "action": "REVIEW",
+        "workflow_status": "REVIEW_REQUIRED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 1,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B26",
+      "scenario_id": "b26-missing-staging-with-clear",
+      "label": "STAGING never observed (coverage healthy), CLEAR closes the sequence",
+      "category": "incomplete",
+      "supported": false,
+      "expected": {
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "workflow_status": "WAITING",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B27",
+      "scenario_id": "b27-deviation-without-clear",
+      "label": "Ordering violation proven before the sequence completes; deadline reached without CLEAR",
+      "category": "deviated",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "ORDER-02",
+        "supported": false,
+        "action_events": {
+          "WorkflowHeld": 1
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "ORDER-02",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 3
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 3,
+        "traceable": 3
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B28",
+      "scenario_id": "b28-repeated-staging",
+      "label": "Repeated legitimate STAGING observations — first accepted occurrence governs precedence",
+      "category": "sealed",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 6
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 6,
+        "traceable": 6
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B29",
+      "scenario_id": "b29-departure-before-storage",
+      "label": "Vehicle departs before storage completes (ORDER-03)",
+      "category": "deviated",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "ORDER-03",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "ORDER-03",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B30",
+      "scenario_id": "b30-clear-too-late",
+      "label": "Dock cleared 20 min after departure (TEMP-02 limit 15 min)",
+      "category": "deviated",
+      "supported": false,
+      "expected": {
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "primary_rule": "TEMP-02",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "DEVIATED",
+        "action": "HOLD",
+        "workflow_status": "HELD",
+        "primary_rule": "TEMP-02",
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": true,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 1,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B31",
+      "scenario_id": "b31-unbound-device",
+      "label": "STAGING-like motion from a device with no source binding is retained but never becomes evidence",
+      "category": "incomplete",
+      "supported": false,
+      "expected": {
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "supported": false
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "INCOMPLETE",
+        "action": "WAIT",
+        "workflow_status": "WAITING",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": false,
+        "ever_held": false,
+        "final_sealed": false,
+        "business_events": {
+          "WorkflowReleased": 0,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 4
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1
+      },
+      "provenance": {
+        "evidence": 4,
+        "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    }
+  ],
+  "policy_checks": [
+    {
+      "id": "B14",
+      "file": "../policies/examples/invalid-deviated-release.yaml",
+      "expect": "POLICY_INVALID",
+      "observed": "POLICY_INVALID",
+      "passed": true,
+      "errors": [
+        "mappings.DEVIATED: safe profile forbids DEVIATED → RELEASE (only SEALED may RELEASE)"
+      ]
+    },
+    {
+      "id": "A-V2",
+      "file": "../policies/examples/deviated-to-review.yaml",
+      "expect": "VALID",
+      "observed": "VALID",
+      "passed": true,
+      "errors": []
+    }
+  ],
+  "determinism": {
+    "engine_runs": 200,
+    "engine_consistent": true,
+    "pipeline_runs": 20,
+    "pipeline_expected": 20
+  },
+  "metrics": {
+    "scenarios": 31,
+    "passed": 31,
+    "unsupported": 21,
+    "supported": 10,
+    "false_sealed": 0,
+    "false_release": 0,
+    "false_hold": 0,
+    "verdict_checked": 29,
+    "verdict_correct": 29,
+    "action_checked": 28,
+    "action_correct": 28,
+    "receipts": 31,
+    "replay_consistent": 31,
+    "evidence_items": 140,
+    "evidence_traceable": 140,
+    "release_invariant_violations": 0,
+    "duplicate_action_events": 0
+  }
+}

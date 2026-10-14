@@ -1,0 +1,16 @@
+{
+  "scenario_id": "b11b-valid-signature",
+  "label": "Signed Ring webhooks (RING_WEBHOOK profile) pass HMAC verification end to end",
+  "category": "sealed",
+  "base_time": "2026-10-18T14:00:00Z",
+  "source_profile": "RING_WEBHOOK",
+  "signature": "valid",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging", "components": ["0"] },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "SEALED", "action": "RELEASE", "supported": true }
+}

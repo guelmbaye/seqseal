@@ -1,0 +1,74 @@
+{
+  "$comment": "Reference rule semantics (Level 4). Expectations are rule statuses only — never workflow verdicts or business actions.",
+  "cases": [
+    {
+      "name": "BEFORE passes when the first state strictly precedes the reference",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": {
+        "arrival": "2026-10-18T14:00:00Z",
+        "staging": "2026-10-18T14:03:00Z",
+        "storage": "2026-10-18T14:06:00Z",
+        "departure": "2026-10-18T14:09:00Z",
+        "clear": "2026-10-18T14:11:00Z"
+      },
+      "expected": { "ORDER-01": "PASS", "ORDER-02": "PASS", "ORDER-03": "PASS", "ORDER-04": "PASS", "TEMP-01": "PASS", "TEMP-02": "PASS", "REQ-05": "PASS" }
+    },
+    {
+      "name": "Same states, different order: ORDER-02 fails",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": {
+        "arrival": "2026-10-18T14:00:00Z",
+        "storage": "2026-10-18T14:03:00Z",
+        "staging": "2026-10-18T14:06:00Z",
+        "departure": "2026-10-18T14:09:00Z",
+        "clear": "2026-10-18T14:11:00Z"
+      },
+      "expected": { "ORDER-01": "PASS", "ORDER-02": "FAIL", "ORDER-03": "PASS", "ORDER-04": "PASS", "TEMP-01": "PASS", "TEMP-02": "PASS" }
+    },
+    {
+      "name": "WITHIN fails beyond the inclusive maximum",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": { "arrival": "2026-10-18T14:00:00Z", "staging": "2026-10-18T14:08:00Z" },
+      "expected": { "TEMP-01": "FAIL", "ORDER-01": "PASS" }
+    },
+    {
+      "name": "WITHIN maximum boundary is inclusive",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": { "arrival": "2026-10-18T14:00:00Z", "staging": "2026-10-18T14:07:00Z" },
+      "expected": { "TEMP-01": "PASS" }
+    },
+    {
+      "name": "Absence is never FAIL",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": { "arrival": "2026-10-18T14:00:00Z" },
+      "expected": { "REQ-01": "PASS", "REQ-02": "NOT_EVALUABLE", "ORDER-01": "NOT_EVALUABLE", "TEMP-01": "NOT_EVALUABLE" },
+      "expected_reasons": { "REQ-02": "MISSING_EVIDENCE", "ORDER-01": "MISSING_EVIDENCE" }
+    },
+    {
+      "name": "Equal timestamps cannot establish strict order",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": { "staging": "2026-10-18T14:03:00Z", "storage": "2026-10-18T14:03:00Z" },
+      "expected": { "ORDER-02": "NOT_EVALUABLE" },
+      "expected_reasons": { "ORDER-02": "AMBIGUOUS_ORDER" }
+    },
+    {
+      "name": "Unresolved evidence outranks missing evidence",
+      "protocol": "../examples/inbound-delivery.yaml",
+      "timeline": { "staging": { "status": "UNRESOLVED", "reason": "UNRESOLVED_EVIDENCE" }, "storage": "2026-10-18T14:03:00Z" },
+      "expected": { "ORDER-02": "NOT_EVALUABLE", "REQ-02": "NOT_EVALUABLE" },
+      "expected_reasons": { "ORDER-02": "UNRESOLVED_EVIDENCE" }
+    },
+    {
+      "name": "Forbidden direct transition and forbidden state",
+      "protocol": "valid/operators-all.yaml",
+      "timeline": { "a": "2026-10-18T10:00:00Z", "c": "2026-10-18T10:01:00Z", "b": "2026-10-18T10:02:00Z", "x": "2026-10-18T10:03:00Z" },
+      "expected": { "FBD-AC": "FAIL", "FBD-X": "FAIL", "ORD-AB": "PASS", "ORD-CB": "FAIL", "TMP-AB": "PASS" }
+    },
+    {
+      "name": "Forbidden transition not applicable when it never occurred",
+      "protocol": "valid/operators-all.yaml",
+      "timeline": { "a": "2026-10-18T10:00:00Z", "b": "2026-10-18T10:01:00Z" },
+      "expected": { "FBD-AC": "NOT_APPLICABLE", "FBD-X": "PASS", "ORD-AB": "PASS", "ORD-CB": "NOT_EVALUABLE" }
+    }
+  ]
+}

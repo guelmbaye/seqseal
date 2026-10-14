@@ -1,0 +1,26 @@
+# Evidence Acceptance Policy — which candidates become authoritative evidence.
+# First matching rule wins. Anything unmatched stays UNCERTAIN (never silently accepted).
+id: EVIDENCE-ACCEPT
+version: "1.0.0"
+rules:
+  - id: ACC-DIRECT
+    when: { mode: DIRECT }
+    outcome: ACCEPT
+  - id: ACC-CONFIGURED
+    when: { mode: CONFIGURED_MAPPING }
+    outcome: ACCEPT
+  - id: ACC-HUMAN
+    when: { mode: HUMAN_CONFIRMED }
+    outcome: ACCEPT
+  - id: ACC-AI-HIGH
+    description: AI may only propose evidence; only clearly supported, high-quality interpretations are accepted.
+    when: { mode: AI_ASSISTED, assessment: [SUPPORTED], quality: [HIGH] }
+    outcome: ACCEPT
+  - id: REJ-AI-NOT-SUPPORTED
+    when: { mode: AI_ASSISTED, assessment: [NOT_SUPPORTED] }
+    outcome: REJECT
+  - id: UNC-AI-OTHER
+    description: Ambiguous or medium/low quality AI interpretations require human evidence review.
+    when: { mode: AI_ASSISTED }
+    outcome: UNCERTAIN
+default: UNCERTAIN

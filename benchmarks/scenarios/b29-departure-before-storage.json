@@ -1,0 +1,14 @@
+{
+  "scenario_id": "b29-departure-before-storage",
+  "label": "Vehicle departs before storage completes (ORDER-03)",
+  "category": "deviated",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging" },
+    { "at": "+5m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+7m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "DEVIATED", "action": "HOLD", "primary_rule": "ORDER-03", "supported": false }
+}

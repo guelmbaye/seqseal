@@ -1,0 +1,27 @@
+{
+  "scenario_id": "b23-review-confirm",
+  "label": "Human reviewer confirms ambiguous STAGING evidence → deterministic re-evaluation → amendment",
+  "category": "review",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    {
+      "at": "+3m",
+      "type": "motion_detected",
+      "subtype": "other_motion",
+      "device": "ring-device-staging",
+      "mock_interpretation": { "assessment": "AMBIGUOUS", "quality": "MEDIUM", "reason_code": "OCCLUDED_OR_DARK" }
+    },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": {
+    "verdict": "SEALED",
+    "action": "RELEASE",
+    "supported": true,
+    "receipt_versions": 2,
+    "notes": "REVIEW receipt v1 is preserved; the reviewer acted on evidence (no force-release), the engine re-ran and v2 records RELEASE."
+  },
+  "checks": ["review_confirm"]
+}

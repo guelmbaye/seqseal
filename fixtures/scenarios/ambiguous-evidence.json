@@ -1,0 +1,22 @@
+{
+  "scenario_id": "ambiguous-evidence",
+  "label": "Execution D — Ambiguous Evidence",
+  "description": "Unclassified motion in staging requires AI-assisted interpretation, which returns AMBIGUOUS/LOW: AI may only propose evidence.",
+  "category": "uncertain",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry", "note": "ARRIVAL" },
+    {
+      "at": "+3m",
+      "type": "motion_detected",
+      "subtype": "other_motion",
+      "device": "ring-device-staging",
+      "note": "STAGING? (ambiguous)",
+      "mock_interpretation": { "assessment": "AMBIGUOUS", "quality": "LOW", "reason_code": "OCCLUDED_OR_DARK" }
+    },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage", "note": "STORAGE" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit", "note": "DEPARTURE" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit", "note": "CLEAR" }
+  ],
+  "expected": { "verdict": "UNCERTAIN", "action": "REVIEW", "supported": false, "action_events": { "WorkflowReleased": 0 } }
+}

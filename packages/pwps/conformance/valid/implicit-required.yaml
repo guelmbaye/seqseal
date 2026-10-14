@@ -1,0 +1,19 @@
+# States flagged `required: true` need no explicit REQUIRED constraint;
+# compilers synthesize an implicit rule REQ:<state>.
+pwps: "0.1"
+protocol:
+  id: "CONF-IMPLICIT"
+  version: "1.0.0"
+  name: "Implicit required states"
+  description: Required states without REQUIRED constraints.
+states:
+  - id: start
+    required: true
+  - id: finish
+    required: true
+    terminal: true
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: start
+    reference: finish

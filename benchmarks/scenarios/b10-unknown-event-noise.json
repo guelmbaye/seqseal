@@ -1,0 +1,17 @@
+{
+  "scenario_id": "b10-unknown-event-noise",
+  "label": "Unknown future Ring event type is stored but never becomes a workflow state",
+  "category": "sealed",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging" },
+    { "at": "+4m", "type": "unknown_future_event", "device": "ring-device-staging" },
+    { "at": "+5m", "type": "motion_detected", "subtype": "brand_new_subtype", "device": "ring-device-staging" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "SEALED", "action": "RELEASE", "supported": true },
+  "checks": ["evidence_count:5"]
+}

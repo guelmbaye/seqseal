@@ -1,0 +1,128 @@
+# IDP-01 — Inbound Delivery Integrity
+# Defined with PWPS 0.1 (Physical Workflow Protocol Specification).
+#
+# This file describes WHAT SHOULD HAPPEN physically. It deliberately contains
+# no Ring identifiers, no AWS services, no AI prompts and no business actions
+# (RELEASE/HOLD live in policies/inbound-delivery-default.yaml).
+#
+# Demo thresholds are not universal logistics standards. TEMP-01 was tuned
+# from PT5M to PT7M (docs/BUILD_NOTES.md, decision BN-002) so that the canonical
+# Winning Moment executions differ in exactly one rule: ORDER-02.
+pwps: "0.1"
+
+protocol:
+  id: "IDP-01"
+  version: "1.0.0"
+  name: "Inbound Delivery Integrity"
+  description: >
+    Verifies the ordered physical execution of an inbound delivery:
+    arrival, staging, storage, departure and return to a clear dock.
+
+metadata:
+  description: Verifies the required sequence for an inbound receiving workflow.
+  authors:
+    - "SEQSEAL"
+  created_at: "2026-10-18"
+  domain: "logistics"
+  profile: "linear-verification"
+
+zones:
+  - id: receiving-entry
+    name: Receiving Entry
+  - id: staging
+    name: Staging Area
+  - id: storage-transition
+    name: Storage Transition
+  - id: receiving-exit
+    name: Receiving Exit
+
+states:
+  - id: arrival
+    name: Arrival
+    required: true
+    zone: receiving-entry
+  - id: staging
+    name: Staging
+    required: true
+    zone: staging
+  - id: storage
+    name: Storage
+    required: true
+    zone: storage-transition
+  - id: departure
+    name: Departure
+    required: true
+    zone: receiving-exit
+  - id: clear
+    name: Clear
+    required: true
+    terminal: true
+    zone: receiving-exit
+
+constraints:
+  - id: REQ-01
+    operator: REQUIRED
+    state: arrival
+  - id: REQ-02
+    operator: REQUIRED
+    state: staging
+  - id: REQ-03
+    operator: REQUIRED
+    state: storage
+  - id: REQ-04
+    operator: REQUIRED
+    state: departure
+  - id: REQ-05
+    operator: REQUIRED
+    state: clear
+
+  - id: ORDER-01
+    operator: BEFORE
+    state: arrival
+    reference: staging
+  - id: ORDER-02
+    operator: BEFORE
+    state: staging
+    reference: storage
+    description: Staging must precede storage.
+  - id: ORDER-03
+    operator: BEFORE
+    state: storage
+    reference: departure
+  - id: ORDER-04
+    operator: BEFORE
+    state: departure
+    reference: clear
+
+  - id: TEMP-01
+    operator: WITHIN
+    state: staging
+    after: arrival
+    duration: PT7M
+  - id: TEMP-02
+    operator: WITHIN
+    state: clear
+    after: departure
+    duration: PT15M
+
+evidence:
+  - state: arrival
+    accepted_authority: [DIRECT, CONFIGURED, HUMAN_CONFIRMED]
+  - state: staging
+    accepted_authority: [DIRECT, CONFIGURED, AI_ASSISTED, HUMAN_CONFIRMED]
+  - state: storage
+    accepted_authority: [DIRECT, CONFIGURED, AI_ASSISTED, HUMAN_CONFIRMED]
+  - state: departure
+    accepted_authority: [DIRECT, CONFIGURED, HUMAN_CONFIRMED]
+  - state: clear
+    accepted_authority: [DIRECT, CONFIGURED, HUMAN_CONFIRMED]
+
+uncertainty:
+  ambiguous_ordering: NOT_EVALUABLE
+  required_state_unresolved: NOT_EVALUABLE
+  source_coverage_gap: NOT_EVALUABLE
+
+failure_conditions:
+  - id: FC-01
+    description: Storage must never precede staging.
+    constraint_ref: ORDER-02

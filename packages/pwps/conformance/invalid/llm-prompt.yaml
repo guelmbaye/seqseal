@@ -1,0 +1,12 @@
+# AI evidence interpretation belongs outside protocol semantics (SPEC §12.2).
+pwps: "0.1"
+protocol: { id: "BAD-PROMPT", version: "1.0.0", name: "LLM prompt rule" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - id: VIBE-01
+    operator: BEFORE
+    state: a
+    reference: b
+    prompt: Ask a model whether the process looks correct.

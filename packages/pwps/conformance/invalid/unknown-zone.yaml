@@ -1,0 +1,9 @@
+pwps: "0.1"
+protocol: { id: "BAD-ZONE", version: "1.0.0", name: "Undeclared zone" }
+zones:
+  - { id: staging }
+states:
+  - { id: a, required: true, zone: staging }
+  - { id: b, required: true, terminal: true, zone: cold-room }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }

@@ -1,0 +1,9 @@
+---
+# Same protocol as examples/minimal.yaml, written in flow style with different
+# key order and comments. Its canonical hash MUST be identical.
+constraints: [{ reference: handover, state: check, operator: BEFORE, id: ORDER-01 }]
+states:
+  - { terminal: false, required: true, name: Check, id: check }   # explicit default
+  - { id: handover, name: Handover, required: true, terminal: true }
+protocol: { description: "Item must be checked before it is handed over.", name: "Minimal two-step handoff", version: "1.0.0", id: "MIN-01" }
+pwps: "0.1"

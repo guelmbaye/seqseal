@@ -1,0 +1,12 @@
+# INVALID on purpose — rejected at activation by the safe MVP profile
+# (benchmark B14 / action test A07). Only SEALED may ever map to RELEASE.
+id: IDP-ACTION
+name: Unsafe policy
+version: "9.9.9"
+profile: safe-mvp
+mappings:
+  SEALED: RELEASE
+  DEVIATED: RELEASE
+  INCOMPLETE: WAIT
+  UNCERTAIN: REVIEW
+provisional_actions: [WAIT]

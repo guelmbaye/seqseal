@@ -1,0 +1,13 @@
+# Example of a different, still-safe business policy for the SAME protocol (IDP-01).
+# Changing DEVIATED → HOLD to DEVIATED → REVIEW requires a new policy version;
+# historical receipts keep the original policy (Doc 02 §54).
+id: IDP-ACTION
+name: Inbound Delivery — Review deviations
+version: "2.0.0"
+profile: safe-mvp
+mappings:
+  SEALED: RELEASE
+  DEVIATED: REVIEW
+  INCOMPLETE: WAIT
+  UNCERTAIN: REVIEW
+provisional_actions: [WAIT, REVIEW]

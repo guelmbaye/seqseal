@@ -1,0 +1,15 @@
+{
+  "scenario_id": "wrong-sequence",
+  "label": "Execution B — Reordered Sequence",
+  "description": "Same events, same devices, same mappings — STORAGE observed before required STAGING.",
+  "category": "deviated",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry", "note": "ARRIVAL" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage", "note": "STORAGE" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging", "note": "STAGING" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit", "note": "DEPARTURE" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit", "note": "CLEAR" }
+  ],
+  "expected": { "verdict": "DEVIATED", "action": "HOLD", "primary_rule": "ORDER-02", "supported": false, "action_events": { "WorkflowHeld": 1, "WorkflowReleased": 0 } }
+}

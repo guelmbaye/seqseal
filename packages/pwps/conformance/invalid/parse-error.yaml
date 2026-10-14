@@ -1,0 +1,6 @@
+pwps: "0.1"
+protocol:
+  id: "BAD-PARSE"
+   version: "1.0.0"
+  name: "Broken indentation"
+states: [

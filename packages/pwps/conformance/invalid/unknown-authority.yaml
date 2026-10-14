@@ -1,0 +1,10 @@
+pwps: "0.1"
+protocol: { id: "BAD-AUTH", version: "1.0.0", name: "Unknown evidence authority" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }
+evidence:
+  - state: a
+    accepted_authority: [DIRECT, LLM_SAYS_SO]

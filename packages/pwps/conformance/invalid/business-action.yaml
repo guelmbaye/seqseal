@@ -1,0 +1,12 @@
+# PWPS is action-neutral: verdict → action mappings belong to the consumer (SPEC §3).
+pwps: "0.1"
+protocol: { id: "BAD-ACTION", version: "1.0.0", name: "Business action in core" }
+states:
+  - { id: staging, required: true }
+  - { id: storage, required: true, terminal: true }
+constraints:
+  - id: ORDER-02
+    operator: BEFORE
+    state: staging
+    reference: storage
+    on_deviation: HOLD

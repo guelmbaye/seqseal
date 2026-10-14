@@ -1,0 +1,6 @@
+pwps: "0.1"
+protocol: { id: "BAD-SELF", version: "1.0.0", name: "Self ordering" }
+states:
+  - { id: staging, required: true, terminal: true }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: staging, reference: staging }

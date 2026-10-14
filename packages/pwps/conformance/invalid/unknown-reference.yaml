@@ -1,0 +1,7 @@
+pwps: "0.1"
+protocol: { id: "BAD-REF", version: "1.0.0", name: "Unknown state reference" }
+states:
+  - { id: staging, required: true }
+  - { id: storage, required: true, terminal: true }
+constraints:
+  - { id: ORDER-02, operator: BEFORE, state: staging, reference: warehouse }

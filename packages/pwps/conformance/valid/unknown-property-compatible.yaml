@@ -1,0 +1,19 @@
+# Invalid in strict mode (PWPS-E005), valid with a warning in compatible mode (PWPS-W010).
+pwps: "0.1"
+protocol:
+  id: "CONF-COMPAT"
+  version: "1.0.0"
+  name: "Unknown optional property"
+  description: Future-version property that a 0.1 consumer does not understand.
+states:
+  - id: a
+    required: true
+    future_hint: true
+  - id: b
+    required: true
+    terminal: true
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: a
+    reference: b

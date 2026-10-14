@@ -1,0 +1,28 @@
+pwps: "0.1"
+protocol:
+  id: "CONF-EVIDENCE"
+  version: "0.1.0"
+  name: "Evidence requirements"
+  description: Accepted evidence authority classes per state.
+zones:
+  - id: dock
+states:
+  - id: arrive
+    required: true
+    zone: dock
+  - id: unload
+    required: true
+    terminal: true
+    zone: dock
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: arrive
+    reference: unload
+evidence:
+  - state: unload
+    required: true
+    zone: dock
+    accepted_authority: [HUMAN_CONFIRMED, DIRECT]
+  - state: arrive
+    accepted_authority: [CONFIGURED]

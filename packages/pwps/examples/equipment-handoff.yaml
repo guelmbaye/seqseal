@@ -1,0 +1,60 @@
+# A second, unrelated example to show PWPS is not tied to SEQSEAL or Ring:
+# an equipment handoff verified with any evidence source (RFID, badge, camera, manual log).
+pwps: "0.1"
+protocol:
+  id: "EQH-01"
+  version: "1.0.0"
+  name: "Equipment Handoff"
+  description: Equipment is inspected and signed out before leaving the cage; it never leaves uninspected.
+zones:
+  - id: equipment-cage
+    name: Equipment Cage
+  - id: inspection-bench
+    name: Inspection Bench
+  - id: exit-door
+    name: Exit Door
+states:
+  - id: checkout-request
+    name: Checkout Request
+    required: true
+    zone: equipment-cage
+  - id: inspection
+    name: Inspection
+    required: true
+    zone: inspection-bench
+  - id: sign-out
+    name: Sign-out
+    required: true
+    zone: equipment-cage
+  - id: exit
+    name: Exit
+    required: true
+    terminal: true
+    zone: exit-door
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: checkout-request
+    reference: inspection
+  - id: ORDER-02
+    operator: BEFORE
+    state: inspection
+    reference: sign-out
+  - id: ORDER-03
+    operator: AFTER
+    state: exit
+    reference: sign-out
+  - id: TEMP-01
+    operator: WITHIN
+    state: exit
+    after: sign-out
+    duration: PT30M
+  - id: FORBID-01
+    operator: FORBIDDEN
+    transition:
+      from: checkout-request
+      to: exit
+    description: Equipment must never go straight from the cage to the exit.
+evidence:
+  - state: inspection
+    accepted_authority: [DIRECT, CONFIGURED, HUMAN_CONFIRMED]

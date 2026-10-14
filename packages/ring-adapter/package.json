@@ -1,0 +1,15 @@
+{
+  "name": "@seqseal/ring-adapter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Ring source boundary: webhook HMAC verification, JSON:API envelope parsing, normalization into vendor-neutral observations, Ring Partner API client, Playground capture and fixture replay.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@seqseal/contracts": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

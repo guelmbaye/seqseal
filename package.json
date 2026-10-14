@@ -1,0 +1,60 @@
+{
+  "name": "seqseal",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SEQSEAL — Physical Workflow Integrity. Verify the sequence. Seal the workflow.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "build": "pnpm --filter @pwps/core build && pnpm build:lambdas && pnpm --filter @seqseal/web build",
+    "build:lambdas": "node scripts/build-lambdas.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && pnpm --filter @seqseal/web typecheck",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:winning": "vitest run tests/winning-moment.spec.ts",
+    "benchmark": "tsx benchmarks/run.ts",
+    "replay": "tsx scripts/replay.ts",
+    "pwps": "tsx packages/pwps/src/cli.ts",
+    "demo": "pnpm --filter @seqseal/web dev",
+    "demo:headless": "tsx scripts/replay.ts --scenario winning-moment",
+    "sign-webhook": "tsx scripts/sign-webhook.ts",
+    "hcl:check": "node scripts/check-hcl.mjs",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm benchmark --check && pnpm pwps validate protocols/inbound-delivery.yaml"
+  },
+  "devDependencies": {
+    "@cdktf/hcl2json": "0.21.0",
+    "@eslint/js": "^9.39.0",
+    "@pwps/core": "workspace:*",
+    "@seqseal/action-policy-core": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/engine-core": "workspace:*",
+    "@seqseal/evidence-model": "workspace:*",
+    "@seqseal/pipeline": "workspace:*",
+    "@seqseal/ring-adapter": "workspace:*",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/node": "^22.20.0",
+    "esbuild": "^0.28.0",
+    "eslint": "^9.39.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.9.0",
+    "tsx": "^4.23.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "^8.71.0",
+    "vitest": "3.2.7",
+    "yaml": "^2.9.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "unrs-resolver"
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+pwps: "0.1"
+protocol: { id: "BAD-OP", version: "1.0.0", name: "Unsupported operator" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: P-01, operator: PROBABILISTIC_BEFORE, state: a, reference: b }

@@ -1,0 +1,10 @@
+pwps: "0.1"
+protocol: { id: "BAD-CYCLE", version: "1.0.0", name: "Strict ordering cycle" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true }
+  - { id: c, required: true, terminal: true }
+constraints:
+  - { id: ORDER-AB, operator: BEFORE, state: a, reference: b }
+  - { id: ORDER-BC, operator: BEFORE, state: b, reference: c }
+  - { id: ORDER-CA, operator: AFTER, state: a, reference: c }

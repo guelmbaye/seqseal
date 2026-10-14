@@ -1,0 +1,8 @@
+pwps: "0.1"
+protocol: { id: "BAD-REQ", version: "1.0.0", name: "Contradictory required flag" }
+states:
+  - { id: a, required: false }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: REQ-A, operator: REQUIRED, state: a }
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }

@@ -1,0 +1,12 @@
+pwps: "0.1"
+protocol: { id: "BAD-FT", version: "1.0.0", name: "Forbidden transition also declared" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+transitions:
+  - { from: a, to: b }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }
+  - id: FORBID-AB
+    operator: FORBIDDEN
+    transition: { from: a, to: b }

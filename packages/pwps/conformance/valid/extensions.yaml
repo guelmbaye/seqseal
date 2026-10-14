@@ -1,0 +1,28 @@
+# Unknown extensions are data. Generic consumers MUST be able to ignore them.
+pwps: "0.1"
+protocol:
+  id: "CONF-EXT"
+  version: "1.2.3"
+  name: "Extensions and metadata"
+metadata:
+  description: Metadata and extensions do not change semantics.
+  owner: operations
+extensions:
+  another_vendor:
+    foo: bar
+  seqseal:
+    display_group: receiving
+states:
+  - id: a
+    required: true
+  - id: b
+    required: true
+    terminal: true
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: a
+    reference: b
+    severity: ADVISORY
+uncertainty:
+  ambiguous_ordering: NOT_EVALUABLE

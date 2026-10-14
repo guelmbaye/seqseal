@@ -1,0 +1,20 @@
+# The smallest meaningful PWPS document: two states, one ordering rule.
+pwps: "0.1"
+protocol:
+  id: "MIN-01"
+  version: "1.0.0"
+  name: "Minimal two-step handoff"
+  description: Item must be checked before it is handed over.
+states:
+  - id: check
+    name: Check
+    required: true
+  - id: handover
+    name: Handover
+    required: true
+    terminal: true
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: check
+    reference: handover

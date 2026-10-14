@@ -1,0 +1,15 @@
+{
+  "scenario_id": "missing-evidence",
+  "label": "Execution C — Missing Evidence",
+  "description": "CLEAR never observed while coverage is healthy; the execution deadline is reached.",
+  "category": "incomplete",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry", "note": "ARRIVAL" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging", "note": "STAGING" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage", "note": "STORAGE" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit", "note": "DEPARTURE" }
+  ],
+  "finalize_at_end": true,
+  "expected": { "verdict": "INCOMPLETE", "action": "WAIT", "supported": false, "action_events": { "WorkflowReleased": 0 } }
+}

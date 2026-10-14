@@ -1,0 +1,46 @@
+pwps: "0.1"
+protocol:
+  id: "CONF-OPS"
+  version: "1.0.0"
+  name: "All PWPS 0.1 operators"
+  description: Exercises REQUIRED, BEFORE, AFTER, WITHIN and both FORBIDDEN forms.
+zones:
+  - id: zone-a
+  - id: zone-b
+states:
+  - id: a
+    required: true
+    zone: zone-a
+  - id: b
+    required: true
+    zone: zone-b
+  - id: c
+    required: true
+    terminal: true
+  - id: x
+constraints:
+  - id: REQ-A
+    operator: REQUIRED
+    state: a
+  - id: ORD-AB
+    operator: BEFORE
+    state: a
+    reference: b
+  - id: ORD-CB
+    operator: AFTER
+    state: c
+    reference: b
+  - id: TMP-AB
+    operator: WITHIN
+    state: b
+    after: a
+    duration: PT2M
+  - id: FBD-AC
+    operator: FORBIDDEN
+    transition:
+      from: a
+      to: c
+  - id: FBD-X
+    operator: FORBIDDEN
+    state: x
+    severity: MANDATORY

@@ -1,0 +1,15 @@
+{
+  "name": "@seqseal/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SEQSEAL shared, versioned domain contracts (zod schemas + types) and domain-event vocabulary.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pwps/core": "workspace:*",
+    "zod": "3.25.76"
+  }
+}

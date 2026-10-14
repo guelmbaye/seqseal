@@ -1,0 +1,10 @@
+# Vendor API details belong in source bindings, never in PWPS core (SPEC §3).
+pwps: "0.1"
+protocol: { id: "BAD-VENDOR", version: "1.0.0", name: "Vendor field in core" }
+states:
+  - id: staging
+    required: true
+    ring_webhook_subtype: package_delivery
+  - { id: storage, required: true, terminal: true }
+constraints:
+  - { id: ORDER-02, operator: BEFORE, state: staging, reference: storage }

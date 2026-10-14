@@ -1,0 +1,14 @@
+{
+  "scenario_id": "b25-send-time-fallback",
+  "label": "STAGING without physical timestamp — send-time fallback (±30 s) cannot order it against STORAGE 20 s later",
+  "category": "uncertain",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging", "omit_timestamp": true },
+    { "at": "+3m20s", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "UNCERTAIN", "action": "REVIEW", "supported": false }
+}

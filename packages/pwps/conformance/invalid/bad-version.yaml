@@ -1,0 +1,6 @@
+pwps: "0.1"
+protocol: { id: "BAD-VER", version: "v1", name: "Non-semver protocol version" }
+states:
+  - { id: a, required: true, terminal: true }
+constraints:
+  - { id: REQ-A, operator: REQUIRED, state: a }

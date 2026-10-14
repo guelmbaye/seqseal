@@ -1,0 +1,19 @@
+{
+  "name": "@seqseal/pipeline",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SEQSEAL domain pipeline: ingestion → normalization → evidence → correlation → Sequence Integrity Engine → Action Policy → Operational Gate → SeqSeal Receipt. Infrastructure-agnostic (in-memory locally, DynamoDB/EventBridge on AWS).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@pwps/core": "workspace:*",
+    "@seqseal/action-policy-core": "workspace:*",
+    "@seqseal/contracts": "workspace:*",
+    "@seqseal/engine-core": "workspace:*",
+    "@seqseal/evidence-model": "workspace:*",
+    "@seqseal/ring-adapter": "workspace:*"
+  }
+}

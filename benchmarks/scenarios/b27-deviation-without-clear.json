@@ -1,0 +1,13 @@
+{
+  "scenario_id": "b27-deviation-without-clear",
+  "label": "Ordering violation proven before the sequence completes; deadline reached without CLEAR",
+  "category": "deviated",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging" }
+  ],
+  "finalize_at_end": true,
+  "expected": { "verdict": "DEVIATED", "action": "HOLD", "primary_rule": "ORDER-02", "supported": false, "action_events": { "WorkflowHeld": 1 } }
+}

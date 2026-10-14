@@ -1,0 +1,14 @@
+{
+  "scenario_id": "b03-temporal-violation",
+  "label": "Temporal violation — STAGING 8 min after ARRIVAL (limit 7 min)",
+  "category": "deviated",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+8m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging" },
+    { "at": "+10m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+12m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+14m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "DEVIATED", "action": "HOLD", "primary_rule": "TEMP-01", "supported": false }
+}

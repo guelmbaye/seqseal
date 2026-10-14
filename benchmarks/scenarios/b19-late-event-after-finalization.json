@@ -1,0 +1,23 @@
+{
+  "scenario_id": "b19-late-event-after-finalization",
+  "label": "Late STAGING evidence after finalization creates an amendment (Receipt v2), never a silent rewrite",
+  "category": "amendment",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging", "note": "delivered after finalization" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "late_after_finalize": [2],
+  "expected": {
+    "verdict": "DEVIATED",
+    "action": "HOLD",
+    "primary_rule": "ORDER-02",
+    "supported": false,
+    "receipt_versions": 2,
+    "notes": "Receipt v1 (INCOMPLETE → WAIT) is preserved; v2 supersedes it after the late evidence proves ORDER-02 failed."
+  },
+  "checks": ["receipt_v1_preserved"]
+}

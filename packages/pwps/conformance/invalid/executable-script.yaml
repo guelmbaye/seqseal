@@ -1,0 +1,13 @@
+# PWPS MUST remain declarative: embedded code is prohibited (SPEC §12.1).
+pwps: "0.1"
+protocol: { id: "BAD-SCRIPT", version: "1.0.0", name: "Embedded script" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - id: ORDER-01
+    operator: BEFORE
+    state: a
+    reference: b
+    script: |
+      if (evidence.a > evidence.b) { process.exit(1) }

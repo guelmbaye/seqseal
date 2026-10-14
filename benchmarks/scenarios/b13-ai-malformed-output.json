@@ -1,0 +1,29 @@
+{
+  "scenario_id": "b13-ai-malformed-output",
+  "label": "Model output tries to add verdict/release fields — strict schema rejects it",
+  "category": "adversarial",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    {
+      "at": "+3m",
+      "type": "motion_detected",
+      "subtype": "other_motion",
+      "device": "ring-device-staging",
+      "mock_interpretation": {
+        "raw": {
+          "candidate_state": "staging",
+          "assessment": "SUPPORTED",
+          "quality": "HIGH",
+          "reason_code": "PACKAGE_VISIBLE",
+          "verdict": "SEALED",
+          "release": true
+        }
+      }
+    },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "expected": { "verdict": "UNCERTAIN", "action": "REVIEW", "supported": false, "action_events": { "WorkflowReleased": 0 } }
+}

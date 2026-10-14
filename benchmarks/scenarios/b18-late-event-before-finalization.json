@@ -1,0 +1,15 @@
+{
+  "scenario_id": "b18-late-event-before-finalization",
+  "label": "STAGING delivered late (after DEPARTURE) but occurred before STORAGE",
+  "category": "sealed",
+  "base_time": "2026-10-18T14:00:00Z",
+  "events": [
+    { "at": "+0m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-entry" },
+    { "at": "+3m", "type": "motion_detected", "subtype": "package_delivery", "device": "ring-device-staging" },
+    { "at": "+6m", "type": "motion_detected", "subtype": "human", "device": "ring-device-storage" },
+    { "at": "+9m", "type": "motion_detected", "subtype": "vehicle", "device": "ring-device-exit" },
+    { "at": "+11m", "type": "button_press", "device": "ring-device-exit" }
+  ],
+  "delivery_order": [0, 2, 3, 1, 4],
+  "expected": { "verdict": "SEALED", "action": "RELEASE", "supported": true, "action_events": { "WorkflowHeld": 0, "WorkflowReleased": 1 } }
+}

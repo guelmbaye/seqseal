@@ -1,0 +1,25 @@
+# IDP-ACTION — Inbound Delivery Default action policy
+#
+# Deliberately NOT part of PWPS: the protocol says what should happen physically;
+# this policy says what the business does with the verdict. Another site could
+# keep IDP-01 unchanged and choose DEVIATED → REVIEW instead (new policy version).
+#
+# Safe MVP profile (validated before activation):
+#   - only SEALED may map to RELEASE  (RELEASE ⇒ SEALED)
+#   - RELEASE is never applied provisionally
+id: IDP-ACTION
+name: Inbound Delivery Default
+version: "1.0.0"
+profile: safe-mvp
+description: >
+  Default operational gate for inbound receiving. Releases only protocol-satisfied
+  workflows; holds proven violations; waits on missing evidence; routes ambiguity
+  to human evidence review.
+mappings:
+  SEALED: RELEASE
+  DEVIATED: HOLD
+  INCOMPLETE: WAIT
+  UNCERTAIN: REVIEW
+# A proven ordering violation cannot be repaired by later events, so HOLD may be
+# applied as soon as it is established (Doc 03 §52). WAIT/REVIEW are safe provisional states.
+provisional_actions: [WAIT, HOLD, REVIEW]

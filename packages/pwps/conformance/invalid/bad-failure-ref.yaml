@@ -1,0 +1,9 @@
+pwps: "0.1"
+protocol: { id: "BAD-FC", version: "1.0.0", name: "Failure condition with unknown constraint" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }
+failure_conditions:
+  - { id: FC-01, description: Never b before a, constraint_ref: ORDER-99 }

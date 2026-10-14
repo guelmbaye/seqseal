@@ -1,0 +1,217 @@
+{
+  "$comment": "PWPS 0.1 conformance manifest. Level 1 parser, Level 2 validator, Level 3 canonicalization, Level 4 reference rule semantics.",
+  "valid": [
+    {
+      "file": "valid/operators-all.yaml"
+    },
+    {
+      "file": "valid/implicit-required.yaml"
+    },
+    {
+      "file": "valid/extensions.yaml"
+    },
+    {
+      "file": "valid/evidence-requirements.yaml"
+    },
+    {
+      "file": "valid/unknown-property-compatible.yaml",
+      "mode": "compatible",
+      "warnings": [
+        "PWPS-W010"
+      ]
+    },
+    {
+      "file": "../examples/minimal.yaml"
+    },
+    {
+      "file": "../examples/inbound-delivery.yaml"
+    },
+    {
+      "file": "../examples/equipment-handoff.yaml"
+    }
+  ],
+  "invalid": [
+    {
+      "file": "invalid/duplicate-state.yaml",
+      "codes": [
+        "PWPS-E010"
+      ]
+    },
+    {
+      "file": "invalid/unknown-reference.yaml",
+      "codes": [
+        "PWPS-E021"
+      ]
+    },
+    {
+      "file": "invalid/bad-duration.yaml",
+      "codes": [
+        "PWPS-E030"
+      ]
+    },
+    {
+      "file": "invalid/calendar-duration.yaml",
+      "codes": [
+        "PWPS-E030"
+      ]
+    },
+    {
+      "file": "invalid/zero-duration.yaml",
+      "codes": [
+        "PWPS-E031"
+      ]
+    },
+    {
+      "file": "invalid/duplicate-constraint.yaml",
+      "codes": [
+        "PWPS-E020"
+      ]
+    },
+    {
+      "file": "invalid/unsupported-operator.yaml",
+      "codes": [
+        "PWPS-E050"
+      ]
+    },
+    {
+      "file": "invalid/self-ordering.yaml",
+      "codes": [
+        "PWPS-E022"
+      ]
+    },
+    {
+      "file": "invalid/ordering-cycle.yaml",
+      "codes": [
+        "PWPS-E041"
+      ]
+    },
+    {
+      "file": "invalid/missing-protocol-id.yaml",
+      "codes": [
+        "PWPS-E001"
+      ]
+    },
+    {
+      "file": "invalid/bad-version.yaml",
+      "codes": [
+        "PWPS-E002"
+      ]
+    },
+    {
+      "file": "invalid/unsupported-pwps-version.yaml",
+      "codes": [
+        "PWPS-E003"
+      ]
+    },
+    {
+      "file": "invalid/executable-script.yaml",
+      "codes": [
+        "PWPS-E005"
+      ]
+    },
+    {
+      "file": "invalid/llm-prompt.yaml",
+      "codes": [
+        "PWPS-E005"
+      ]
+    },
+    {
+      "file": "invalid/vendor-field.yaml",
+      "codes": [
+        "PWPS-E005"
+      ]
+    },
+    {
+      "file": "invalid/business-action.yaml",
+      "codes": [
+        "PWPS-E005"
+      ]
+    },
+    {
+      "file": "invalid/required-and-forbidden.yaml",
+      "codes": [
+        "PWPS-E042"
+      ]
+    },
+    {
+      "file": "invalid/contradictory-required.yaml",
+      "codes": [
+        "PWPS-E040"
+      ]
+    },
+    {
+      "file": "invalid/unknown-zone.yaml",
+      "codes": [
+        "PWPS-E012"
+      ]
+    },
+    {
+      "file": "invalid/unknown-authority.yaml",
+      "codes": [
+        "PWPS-E061"
+      ]
+    },
+    {
+      "file": "invalid/bad-failure-ref.yaml",
+      "codes": [
+        "PWPS-E062"
+      ]
+    },
+    {
+      "file": "invalid/not-applicable-field.yaml",
+      "codes": [
+        "PWPS-E024"
+      ]
+    },
+    {
+      "file": "invalid/forbidden-transition-declared.yaml",
+      "codes": [
+        "PWPS-E043"
+      ]
+    },
+    {
+      "file": "invalid/parse-error.yaml",
+      "codes": [
+        "PWPS-E080"
+      ]
+    },
+    {
+      "file": "invalid/duplicate-keys.yaml",
+      "codes": [
+        "PWPS-E080"
+      ]
+    },
+    {
+      "file": "invalid/bad-identifier.yaml",
+      "codes": [
+        "PWPS-E013"
+      ]
+    },
+    {
+      "file": "valid/unknown-property-compatible.yaml",
+      "mode": "strict",
+      "codes": [
+        "PWPS-E005"
+      ]
+    }
+  ],
+  "canonical": [
+    {
+      "name": "IDP-01 YAML and reordered JSON with non-canonical duration hash identically",
+      "files": [
+        "../examples/inbound-delivery.yaml",
+        "canonical/inbound-delivery.reordered.json"
+      ],
+      "expected_hash": "sha256:6f0ad940aa34c2821ff9b20c841ec5243a5f2f22b5b1adf61924ccca2da20d65"
+    },
+    {
+      "name": "Formatting and comments do not change identity",
+      "files": [
+        "../examples/minimal.yaml",
+        "canonical/minimal.reformatted.yaml"
+      ],
+      "expected_hash": "sha256:d9815199ee72c057d0ba38acf52ec8f153a96390d4bae90145c905950ad93a7b"
+    }
+  ],
+  "evaluation": "evaluation/cases.json"
+}

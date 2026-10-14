@@ -1,0 +1,6 @@
+pwps: "9.0"
+protocol: { id: "BAD-SPEC", version: "1.0.0", name: "Unsupported spec version" }
+states:
+  - { id: a, required: true, terminal: true }
+constraints:
+  - { id: REQ-A, operator: REQUIRED, state: a }

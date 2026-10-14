@@ -1,0 +1,11 @@
+# Duplicate mapping keys are ambiguous and MUST be rejected.
+pwps: "0.1"
+protocol:
+  id: "BAD-KEYS"
+  id: "BAD-KEYS-2"
+  version: "1.0.0"
+  name: "Duplicate keys"
+states:
+  - { id: a, required: true, terminal: true }
+constraints:
+  - { id: REQ-A, operator: REQUIRED, state: a }

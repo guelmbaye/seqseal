@@ -1,0 +1,8 @@
+pwps: "0.1"
+protocol: { id: "BAD-REQFORB", version: "1.0.0", name: "Required and forbidden" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: ORDER-01, operator: BEFORE, state: a, reference: b }
+  - { id: FORBID-B, operator: FORBIDDEN, state: b }

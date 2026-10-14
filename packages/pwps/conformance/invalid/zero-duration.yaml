@@ -1,0 +1,7 @@
+pwps: "0.1"
+protocol: { id: "BAD-ZERO", version: "1.0.0", name: "Zero duration" }
+states:
+  - { id: a, required: true }
+  - { id: b, required: true, terminal: true }
+constraints:
+  - { id: TEMP-01, operator: WITHIN, state: b, after: a, duration: "PT0S" }
