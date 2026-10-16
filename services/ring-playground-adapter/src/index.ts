@@ -8,7 +8,7 @@
  *      → this Lambda calls the Ring API itself (status probe or image snapshot download),
  *        records method/endpoint/HTTP status/request id as api_evidence, stores the
  *        snapshot under media/<observation> for optional AI interpretation, and ingests.
- *   2. A complete PlaygroundCapture produced by `scripts/ring-playground-capture.ts`
+ *   2. A complete PlaygroundCapture produced by `scripts/ring-spike.ts capture`
  *      (e.g. after a WHEP live-view session from a laptop) → validated and ingested.
  *
  * It never fabricates `motion_detected.package_delivery`: the observation type is
