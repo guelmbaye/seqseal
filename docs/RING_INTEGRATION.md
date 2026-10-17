@@ -18,7 +18,8 @@ Every observation carries the profile it came from, and the UI always shows it. 
 | `RING_WEBHOOK` | signed Ring notification to `/integrations/ring/webhook` | production path |
 | `RING_STAGING` | the same webhook path against a staging Ring app | integration testing |
 | `RING_PLAYGROUND` | Ring Developer Playground capture with a real Ring API call | live demo without a production app |
-| `FIXTURE_REPLAY` | Ring-shaped fixtures replayed through the full pipeline | local demo, benchmark, tests |
+| `RING_DERIVED_REPLAY` | saved Ring captures (Playground sessions or webhook envelopes) replayed later through the full pipeline | demo fallback level 2 |
+| `FIXTURE_REPLAY` | hand-written Ring-shaped test fixtures replayed through the full pipeline | local demo, benchmark, tests |
 | `CUSTOM_MEDIA` | non-Ring demo media | labelled "not Ring"; never presented as Ring evidence |
 
 ## 2. Webhook path (`RING_WEBHOOK`, `RING_STAGING`)
@@ -52,19 +53,26 @@ pnpm sign-webhook --url https://<api>/integrations/ring/webhook --secret <signin
 
 ## 3. Developer Playground path (`RING_PLAYGROUND`)
 
-The Ring Developer Playground offers simulated live-view sources (Package, Vehicle, Motion) behind real Ring API calls with a short-lived token. It is **not** a webhook simulator, so SEQSEAL does not fabricate `motion_detected.package_delivery` events from it. Instead a **capture** records:
+The Ring Developer Playground offers simulated live-view sources (Package, Vehicle, Motion) behind real Ring API calls, with a short-lived token. It is **not** a webhook simulator, so SEQSEAL does not fabricate `motion_detected.package_delivery` events from it. Instead, a **capture** records:
 
 - `simulation_source` (`PACKAGE` | `VEHICLE` | `MOTION`) and the `session_zone` the operator declared for that session;
-- `api_evidence`: the Ring API call actually made (method, endpoint, HTTP status, request id, response excerpt). A capture without a 2xx Ring call is refused, so no provenance is invented;
+- `ring_event`: the Ring history event the simulation produced (id, type, timestamp). It is read from `GET /v1/history/devices/{id}/events` right after the simulation. The Ring event id becomes the source event reference, and its timestamp the physical time; capturing the same event twice gives one observation;
+- `api_evidence`: the Ring API call actually made (method, endpoint, HTTP status, request id, response excerpt). A capture without a 2xx Ring call is refused, so no provenance is invented. If no new history event appears within 60 s, the capture falls back to a status probe and records that;
 - optional `device_id`, `component_id`, `media_session_ref`.
 
-The observation type is `live_view_simulation`. Bindings `BIND-PG-*` match on the declared `session_zone`, and mappings `MAP-PG-*` map VEHICLE / PACKAGE / MOTION in that zone to a state. The evidence drawer discloses that the zone was operator-declared.
+The observation type is `live_view_simulation`; the Ring event type (for example `on_demand`) is kept in its attributes. Bindings `BIND-PG-*` match on the declared `session_zone`, and mappings `MAP-PG-*` map VEHICLE / PACKAGE / MOTION in that zone to a state. The evidence drawer discloses that the zone was operator-declared.
 
 ```bash
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts discover
+# click a simulation in the Playground, wait for it to finish, then:
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
-  --post http://localhost:3000 [--token <demo-token>]
+  [--session <name>] --post http://localhost:3000 [--token <demo-token>]
 ```
+
+Every capture is also appended to `fixtures/ring/captures/<session>.jsonl`. Such a session can be replayed later through the normal pipeline, labelled `RING_DERIVED_REPLAY`:
+
+- from the Monitor page;
+- with `pnpm replay --captures fixtures/ring/captures/<session>.jsonl [--remote <api> --token <demo-token>]`.
 
 `discover` calls `GET /v1/users/me`, `GET /v1/devices?include=status,capabilities,location,configurations` and, per device, status, capabilities, configurations and event history. It writes the redacted responses to `fixtures/ring/spike-<timestamp>/`. The token is read from the environment and never written to disk. Record the findings in [ring-playground-observations.md](ring-playground-observations.md).
 

@@ -57,6 +57,10 @@ pnpm tsx scripts/ring-spike.ts capture --device <id> --source VEHICLE --zone rec
 pnpm tsx scripts/ring-spike.ts capture --device <id> --source MOTION  --zone receiving-exit --post http://localhost:3000
 ```
 
-| Capture id | Source | Declared zone | Ring request id | Resulting evidence | Execution |
-|---|---|---|---|---|---|
-| | | | | | |
+Each capture is saved to `fixtures/ring/captures/<session>.jsonl` and can be replayed later as Ring-derived replay.
+
+| Capture id | Ring event id (type) | Source | Declared zone | Ring request id | Resulting evidence | Execution |
+|---|---|---|---|---|---|---|
+| | | | | | | |
+
+Record whether the history event appeared, how long after the simulation, and what its timestamp field was called. `latestHistoryEvent` in `packages/ring-adapter/src/playground.ts` is tolerant on purpose; tighten it once the shape is known.

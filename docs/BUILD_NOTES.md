@@ -101,3 +101,89 @@ Bedrock is off by default (`ENABLE_BEDROCK_EVIDENCE=false`).
 **Decision.** The MVP correlates evidence to the single active execution in the inbound-receiving lane. A second independent ARRIVAL while one is active is a correlation ambiguity (REVIEW), not a second execution.
 
 **Why.** General multi-delivery correlation is an open problem. Depth of verification for one constrained workflow was preferred over broad coverage that would have to guess.
+
+---
+
+Decisions taken when aligning the implementation with the **SEQSEAL Implementation Master Brief** (the single source of truth from 2026-10-17 onward).
+
+## BN-016 — The hero is a receiving checklist, not a verdict screen
+
+**Decision.** The default screen shows Delivery A and Delivery B as receiving checklists (✓ Arrival 14:00 ✓ Staging 14:03 ✓ Storage 14:06). Each has a **Release delivery** button that is Unlocked or Locked, with "Wrong order" under B. The verdict tokens, lanes, evidence graph and hashes moved to the advanced execution view. Pressing a Release button reveals the exact rule (expected against observed) and the explanation chain. A 12-second walkthrough plays the brief's §5 sequence over the real results.
+
+**Why.** Brief §2, §23 and §53: the first wow must be the familiar artifact, not PWPS, the receipt or the architecture. A cold viewer must understand within about 12 seconds why B stays locked.
+
+**How the button stays honest.** It mirrors the `ReceivingWorkflow` state the Operational Gate applied (RELEASED → Unlocked; HELD, WAITING, REVIEW_REQUIRED or PENDING → Locked, with the reason). Pressing it never changes state.
+
+## BN-017 — Hero shows three states; the engine evaluates five
+
+**Decision.** The checklist lists the hero protocol ARRIVAL → STAGING → STORAGE in observed order. DEPARTURE and CLEAR appear in a quiet "Also checked" line. The verdict is always computed on the full IDP-01 (five states, eleven rules).
+
+**Why.** Brief §10: less cognitive load in the hero, while the five-state protocol stays in the product and the benchmark. Hiding the last two states entirely would make an INCOMPLETE delivery look fully checked and still locked, without a visible reason.
+
+## BN-018 — Receipt fields follow the brief; explanation chain is deterministic
+
+**Decision.** Receipts carry the §34 field names (`protocol_id`, `protocol_version`, `protocol_hash`, `action_policy_*`, `operational_decision_id`, `operational_action`, `source_evidence_refs`, `receipt_hash`). They also carry the hash of the bindings and mappings in force (`source_config_hash`) and an `explanation_chain` built by `buildExplanationChain` from the evaluation, the decision and the evidence. The chain names the protocol's signature rule (its first declared failure condition, ORDER-02), read from the PWPS file.
+
+**Why.** §35: "This chain must be reconstructable without an LLM." The mappings hash lets the Winning Moment test assert *same mappings* (§45), not only same protocol and policy. When a final HOLD only confirms an earlier provisional `WorkflowHeld`, the receipt names that establishing event and its decision.
+
+## BN-019 — Evidence Graph derived from the rule timeline
+
+**Decision.** The engine returns an `evidence_graph`, built from the exact timeline the PWPS rules are evaluated on:
+
+- nodes: one per state, PRESENT, UNRESOLVED or ABSENT;
+- observed edges: the temporal relation between every pair of present states, using the same precision semantics as the rules;
+- protocol edges: each ordering or timing rule with its result.
+
+**Why.** §7 and the implementation lock name the Evidence Graph as the observed model. Deriving it from the same timeline guarantees that the graph and the rule results can never disagree (tested). A separate graph engine could drift from the verdict.
+
+## BN-020 — RING_DERIVED_REPLAY and captures grounded in Ring history events
+
+**Decision.**
+
+- A sixth source profile, `RING_DERIVED_REPLAY`, covers events that really came from Ring and are replayed later.
+- `scripts/ring-spike.ts capture` now reads the device's event history right after a Playground simulation. It binds the capture to the newest Ring event not captured before: the event id becomes the source event, and its timestamp becomes the physical time. A re-capture of the same Ring event is deduplicated.
+- If no new event appears within 60 s, the capture falls back to a status probe and says so.
+- Every capture is appended to `fixtures/ring/captures/<session>.jsonl`. That session can be replayed through the normal pipeline (Monitor, or `pnpm replay --captures`) and is labelled Ring-derived replay.
+
+**Why.**
+
+- §25 lists the profile.
+- §24 requires recording history behavior and IDs, and says "never build against assumed Playground behavior".
+- Grounding the capture in the Ring event makes "hero evidence is traceable to Ring" (§55) true at the event level, not just at the API-call level.
+- The saved session is demo fallback level 2.
+
+**Not assumed.** The history parser is tolerant on purpose (JSON:API `data[]`, `events[]`, bare arrays; epoch-ms or ISO). The real shape must be confirmed during the spike and recorded in `ring-playground-observations.md`.
+
+## BN-021 — Benchmark aligned with §22, §43 and §44
+
+**Decision.**
+
+- **B15:** each OperationalDecision and ActionApplied is delivered three times.
+- **Replay metrics:** verdict replay consistency and action replay consistency are measured separately.
+- **First implementation goal:** 100 × A and 100 × B now run through the pipeline (was 10 × 10).
+- **CI gates:** RELEASE ⇒ SEALED and "unsupported ⇒ never RELEASE" are now explicit per-scenario assertions.
+
+The benchmark now has 32 scenarios.
+
+**Why.** These are the brief's minimum list, its separate metrics and its CI safety gates. B15 existed implicitly inside B06 and B22, but "duplicate OperationalDecision" deserved its own scenario.
+
+## BN-022 — BEDROCK_DISABLED kill switch
+
+**Decision.** Bedrock is used only when all of these hold:
+
+- `ENABLE_BEDROCK_EVIDENCE=true`;
+- a model id is configured;
+- `BEDROCK_DISABLED` is not `true`.
+
+Terraform sets `BEDROCK_DISABLED=true` whenever Bedrock evidence is not enabled. Replays never fetch fresh media from Ring.
+
+**Why.** §33: "The hero A/B path must work with BEDROCK_DISABLED=true." A single explicit switch is easier to audit than the absence of a flag.
+
+## BN-023 — Working documents
+
+**Decision.** The brief (§50) limits working documents to README, SPEC, BUILD_NOTES, EVALUATION, SAFETY, PRIVACY, FRICTION_LOG and CLAIMS. The following are kept as technical references, not product strategy:
+
+- `ARCHITECTURE.md`, `RING_INTEGRATION.md`, `DEMO_SCRIPT.md`;
+- `ring-playground-observations.md`, the Ring Source Spike record required by the original specification.
+
+No new strategy document was added.

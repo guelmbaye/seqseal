@@ -1,6 +1,32 @@
 # Safety
 
-SEQSEAL controls whether a receiving workflow may proceed. Its most important failure is a **false release**: letting goods move on when the evidence does not prove the protocol was followed. Everything below is designed around making that failure structurally hard, and around failing toward WAIT, REVIEW or HOLD instead.
+SEQSEAL controls whether a receiving workflow may proceed. Its most important failure is a **false release**: letting goods move on when the evidence does not prove the protocol was followed. Everything below is designed to make that failure structurally hard, and to fail toward WAIT, REVIEW or HOLD instead.
+
+## 0. The critical invariant (Master Brief §14)
+
+```
+RELEASE ⇒ SEALED        There is no other automatic RELEASE path.
+
+missing evidence   ≠ RELEASE      → INCOMPLETE → WAIT              (B04, B26)
+ambiguous evidence ≠ RELEASE      → UNCERTAIN  → REVIEW            (B05, B09, B25)
+source outage      ≠ RELEASE      → UNCERTAIN  → REVIEW            (B08)
+AI failure         ≠ RELEASE      → UNCERTAIN  → REVIEW            (B12, B13, B13b)
+engine failure     ≠ RELEASE      → system error, workflow PENDING (B16)
+gate failure       ≠ RELEASED     → no receipt claims the action   (B17)
+```
+
+The CI gate checks this scenario by scenario. If the action is RELEASE, the verdict must be SEALED. For an unsupported scenario, the action must never be RELEASE, at any point in the workflow history (`tests/benchmark-gate.spec.ts`).
+
+### What HOLD means (§15)
+
+In this MVP, HOLD means that **the application-level receiving workflow cannot proceed automatically**. The Release delivery button stays locked and `WorkflowHeld` is emitted. HOLD does not:
+
+- physically lock a door;
+- stop machinery;
+- detain a person;
+- reject a payment.
+
+The action is kept safe and demonstrable on purpose.
 
 ## 1. Invariants
 
@@ -10,11 +36,12 @@ SEQSEAL controls whether a receiving workflow may proceed. Its most important fa
 | RELEASE is never applied provisionally | policy validation (`provisional_actions` cannot contain RELEASE), `decide` defers RELEASE until finalization | action-policy tests ("RELEASE is never applied provisionally") |
 | Missing evidence is never a violation | engine: absence makes a rule NOT_EVALUABLE, never FAIL | engine golden tests, B04, B26 |
 | A violation must be proven by accepted evidence | engine: FAIL requires positive evidence; contested FAIL → UNCERTAIN | B08, B09, B20, B25 |
-| AI cannot produce a verdict or action | strict interpreter schema, forced tool use, IAM `Deny bedrock:*` on decision roles | B12, B13, B13b |
+| AI cannot produce a verdict or action | strict interpreter schema (no verdict, release, hold or action field), forced tool use, IAM `Deny bedrock:*` on decision roles, `BEDROCK_DISABLED=true` kill switch | B12, B13, B13b, aws tests |
 | Errors are not verdicts | `system_error` on the execution; no decision or receipt claims an unapplied action | B16, B17 |
 | Unauthenticated Ring traffic is ignored | HMAC-SHA256 over raw bytes, constant-time comparison | B11, ring-adapter tests |
-| Duplicates cannot multiply actions | idempotency keys on deliveries, events, evidence and decisions | B06, B22 |
-| Decisions are reproducible | pure engine, hashed inputs, receipt replay | 31/31 replay, determinism check |
+| Duplicates cannot multiply actions | idempotency keys on deliveries, events, Ring history events, evidence, decisions and receipts | B06, B15, B22 |
+| Decisions are reproducible | pure engine, hashed inputs, receipt replay (verdict and action separately) | 32/32 replay and action replay, determinism check |
+| The Release button cannot release anything | the UI only mirrors the `ReceivingWorkflow` state the Operational Gate applied; pressing it shows the reason | UI code (`components/DeliveryChecklist.tsx`) |
 | Invalid protocol or policy stops the system | `PROTOCOL_INVALID` / `POLICY_INVALID` at load, no permissive fallback | conformance suite, B14 |
 
 ## 2. Failure modes and what SEQSEAL does
@@ -37,7 +64,12 @@ Reviewers act on **evidence candidates**, never on outcomes (CONFIRM, REJECT, LE
 
 ## 4. Demo controls
 
-The demo orchestrator (`services/demo-orchestrator`, `/api/demo/*` locally) can only replay Ring-shaped source events and close executions (one, or every active replay execution on reset; locally, reset also clears the in-memory store). It cannot set a verdict, an action or a workflow status. Replayed data is labelled `FIXTURE_REPLAY` everywhere it appears. On AWS the endpoint requires the `x-seqseal-demo-token` header, whose value lives in Secrets Manager.
+The demo orchestrator (`services/demo-orchestrator`, `/api/demo/*` locally) can only replay Ring-shaped source events and close executions (one, or every active replay execution on reset; locally, reset also clears the in-memory store). It cannot set a verdict, an action or a workflow status. Replayed data is always labelled:
+
+- `FIXTURE_REPLAY` (test fixture) for hand-written fixtures;
+- `RING_DERIVED_REPLAY` for saved Ring captures replayed later.
+
+Neither is ever shown as live Ring data. On AWS the endpoint requires the `x-seqseal-demo-token` header, whose value lives in Secrets Manager.
 
 ## 5. Residual risks
 

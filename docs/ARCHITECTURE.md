@@ -5,16 +5,19 @@ SEQSEAL turns Ring source events into a verified, gated and receipted operationa
 ## 1. The chain
 
 ```
-Ring source event
+Ring observation
   → RawSourceRecord          (verified, deduplicated, stored as received)
   → NormalizedObservation    (source-agnostic: device, zone, event type, occurred_at, precision)
   → EvidenceCandidate        (binding + mapping → semantic state of the protocol, or nothing)
   → Evidence                 (accepted by the evidence acceptance policy)
-  → WorkflowEvaluation       V = f(P, E)   Sequence Integrity Engine
-  → OperationalDecision      A = g(V, Π)   Action Policy Engine
-  → ReceivingWorkflow        Operational Gate applies the action, emits a business event
-  → SeqSealReceipt           hashes + evidence + rules + verdict + policy + applied action
+  → Evidence Graph           (observed model)  vs  PWPS protocol graph (expected model)
+  → WorkflowEvaluation       V = f(P, E)   Sequence Integrity Engine — evaluate(protocol, evidence)
+  → OperationalDecision      A = g(V, Π)   Action Policy Engine — actionFor(verdict, policy) / decide()
+  → ReceivingWorkflow        Operational Gate applies the action, emits WorkflowReleased / WorkflowHeld / …
+  → SeqSealReceipt           hashes + evidence + rules + verdict + policy + applied action + explanation chain
 ```
+
+The user sees none of this first. The default screen is the receiving checklist with its Release delivery button (BUILD_NOTES BN-016); this chain is what makes the button trustworthy.
 
 Each arrow is an authority boundary. A stage may only write the artifact it owns:
 
@@ -60,6 +63,12 @@ DEVIATED  > UNCERTAIN > INCOMPLETE > SEALED
 - Ordering uses physical `occurred_at` with its precision; two timestamps whose uncertainty intervals overlap cannot be ordered.
 - The first accepted occurrence of a state governs precedence.
 - Each evaluation carries `evidence_set_hash`, `input_hash`, the protocol hash and the engine version, plus a counterfactual ("if STAGING had occurred before STORAGE, ORDER-02 would have passed").
+- Each evaluation also carries its **Evidence Graph**, built from the same timeline the rules are evaluated on:
+  - nodes: one per state (PRESENT, UNRESOLVED or ABSENT) with its evidence;
+  - observed edges: OBSERVED_BEFORE, or ORDER_UNDETERMINED when the precision windows overlap;
+  - protocol edges: each ordering or timing rule with its result and the observed relation.
+
+  Because both come from the same timeline, the graph and the verdict cannot disagree.
 
 ### Action Policy Engine (`packages/action-policy-core`)
 
@@ -130,7 +139,11 @@ The receipt is hashed over its canonical JSON. `replayReceipt` re-runs the engin
 
 ### Local (`LocalRuntime`, `apps/web`)
 
-The web app's server routes host the whole pipeline in-process with an in-memory document database and event bus. `/integrations/ring/webhook` and `/integrations/ring/playground/capture` accept real Ring traffic locally as well. Demo controls replay fixture scenarios through the same entry points (`FIXTURE_REPLAY` profile); they never write a verdict.
+The web app's server routes host the whole pipeline in-process, with an in-memory document database and event bus.
+
+- `/integrations/ring/webhook` and `/integrations/ring/playground/capture` accept real Ring traffic locally as well.
+- Demo controls replay test fixtures (`FIXTURE_REPLAY`) or saved Ring capture sessions (`RING_DERIVED_REPLAY`) through the same entry points. They never write a verdict.
+- The checklist hero (`/api/hero`) shows the latest released and held deliveries from the same kind of source. While a delivery is in progress, for example during a live Playground session, it shows the two most recent instead.
 
 ### AWS (`packages/aws`, `services/*`, `infrastructure/terraform`)
 
@@ -161,9 +174,9 @@ All entities are zod schemas in `packages/contracts/src/domain.ts`. The schemas 
 | NormalizedObservation | `OBS-<10hex>` | device, zone binding, event type/subtype, `occurred_at`, precision |
 | EvidenceCandidate | `CAN-<STATE>-<8hex>` | mode (DIRECT/CONFIGURED_MAPPING/AI_ASSISTED/HUMAN_CONFIRMED), status |
 | Evidence | `EV-<STATE>-<8hex>` | accepted candidate with provenance refs |
-| Execution | `EXEC-0001` | lane, status, source profiles, replay label, system error |
+| Execution | `EXEC-0001` | lane, status, source profiles, source config hash (bindings + mappings), replay label, system error |
 | WorkflowEvaluation | `EVAL-0001-01` | verdict, rule results, hashes, counterfactual |
 | OperationalDecision | `DEC-0001-01` | action, policy ref and hash, final flag |
 | ReceivingWorkflow | execution id | status and transition history |
-| SeqSealReceipt | `SSR-0001`, `SSR-0001-v2` | canonical-JSON hash, supersedes |
+| SeqSealReceipt | `SSR-0001`, `SSR-0001-v2` | Master Brief §34 fields (protocol_*, action_policy_*, operational_decision_id, operational_action, source_evidence_refs), explanation chain, canonical-JSON hash, supersedes |
 | EvidenceReview | `REV-…` | CONFIRM / REJECT / LEAVE_UNRESOLVED on a candidate, never on a verdict |

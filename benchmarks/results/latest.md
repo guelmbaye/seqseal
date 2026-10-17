@@ -1,6 +1,6 @@
 # SEQSEAL benchmark results — seqseal-benchmark@0.1.0
 
-Generated 2026-10-17T14:40:44.596Z · commit `da44e4360416e4ae1755f116f2ae880f5797b924`
+Generated 2026-10-17T14:54:32.446Z · commit `6d48fc4726d65a2c9b13d4ff921242717fa174ae`
 
 Protocol `IDP-01@1.0.0` (sha256:6f0ad940aa34…) · Action policy `IDP-ACTION@1.0.0` (sha256:adfb18d6283f…) · seqseal-engine@0.1.0 · interpreter: mock-evidence-interpreter@1 (deterministic fixture hints)
 

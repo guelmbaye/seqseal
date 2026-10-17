@@ -9,12 +9,15 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 
 | Claim | Evidence | Where measured | Safe wording |
 |---|---|---|---|
-| Same events, different order, different action | `tests/winning-moment.spec.ts`, benchmark B01/B02 | Vitest, `pnpm benchmark` | "Two executions with the same Ring-shaped events, protocol, policy and engine version differ only in order. One is SEALED and released; the other fails ORDER-02 and is held." |
-| No unsupported benchmark scenario was released | `benchmarks/results/latest.md` | `pnpm benchmark` | "0 false RELEASE across the 21 unsupported scenarios of our 31-scenario benchmark." |
+| Every box is checked, Release is still locked | the checklist screen; `lib/checklist.ts` derives rows from accepted evidence and the button from the applied `ReceivingWorkflow` state | UI on `pnpm demo`; `tests/pipeline.e2e.test.ts` (hero) | "Delivery B shows every receiving step checked, and Release delivery stays locked because ORDER-02 failed: Storage 14:03 came before Staging 14:06." |
+| Same events, different order, different action | `tests/winning-moment.spec.ts`, benchmark B01/B02 | Vitest, `pnpm benchmark` | "Two deliveries with the same Ring-shaped events, protocol, policy, mappings and engine version differ only in order. One is SEALED and released; the other fails ORDER-02 and is held." |
+| No unsupported benchmark scenario was released | `benchmarks/results/latest.md` | `pnpm benchmark` | "0 false RELEASE across the 21 unsupported scenarios of our 32-scenario benchmark." |
 | No unsupported scenario was sealed | same | same | "0 false SEALED across 21 unsupported benchmark scenarios." |
 | Expected verdicts on the benchmark | same | same | "On our defined benchmark, every scenario produced the expected verdict and action." |
-| Receipts replay | same; `replayReceipt` | same | "All 31 benchmark receipts replayed to the same verdict, action and hashes." |
-| Provenance | same | same | "Every evidence item in the benchmark traces to an observation and a raw source event (140/140)." |
+| Receipts replay | same; `replayReceipt` | same | "All 32 benchmark receipts replayed to the same verdict (replay consistency) and the same action (action replay consistency), with valid hashes." |
+| The explanation chain needs no model | `packages/pipeline/src/explanation-chain.ts`, winning-moment spec | Vitest | "Every receipt explains its action deterministically: HOLD because DEVIATED → HOLD because ORDER-02 failed because STORAGE 14:03 occurred before STAGING 14:06." |
+| Provenance | same | same | "Every evidence item in the benchmark traces to an observation and a raw source event (145/145)." |
+| 100 × A / 100 × B | benchmark determinism block, winning-moment spec | `pnpm benchmark`, Vitest | "100/100 runs of A were SEALED and released; 100/100 runs of B were DEVIATED and held." |
 | Determinism | same, determinism block | 100× A and 100× B with shuffled input order | "The engine returned identical results across 200 shuffled-order evaluations." |
 | Only SEALED may release | `packages/action-policy-core`, B14 | unit tests, benchmark | "The safe policy profile refuses any mapping other than SEALED → RELEASE and never releases provisionally." |
 | AI cannot seal or release | interpreter schema, forced tool use, IAM `Deny bedrock:*` (`infrastructure/terraform/modules/iam`), B12/B13/B13b | unit tests, benchmark, Terraform source | "AI can propose evidence. It cannot produce a verdict or an action; the decision path has no Bedrock permission." |
@@ -26,12 +29,20 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 
 | Item | Status | What is needed before claiming it |
 |---|---|---|
-| Live Ring Developer Playground captures | adapter, capture endpoint and spike script implemented and tested with fixtures | run `scripts/ring-spike.ts` with a Playground token; fill [ring-playground-observations.md](ring-playground-observations.md) |
+| Live Ring Developer Playground captures | adapter, capture endpoint and spike script implemented. Captures bind to the Ring history event and are saved per session. Tested with constructed captures | run `scripts/ring-spike.ts` with a Playground token; fill [ring-playground-observations.md](ring-playground-observations.md) |
+| Ring-derived replay | profile, replay path and UI implemented, tested with constructed captures | a session file captured from the real Playground (`fixtures/ring/captures/*.jsonl`) |
 | Ring production webhooks | endpoint, HMAC, envelope parsing implemented | a registered Ring app delivering to `webhook_url` |
 | AWS deployment | Terraform, bundles and handlers implemented; HCL parsed, bundles invoked locally | `terraform apply` in an AWS account, then an end-to-end run |
 | Bedrock evidence interpretation | Converse with forced tool use implemented behind `ENABLE_BEDROCK_EVIDENCE` | an enabled model and a measured run; the benchmark uses a deterministic mock |
 
 Until those steps are done, the demo source label reads **Test fixture (Ring-shaped replay)**. It must not be described as live Ring data.
+
+Source wording (honesty lock):
+
+- "Ring Developer Playground" only for live captures.
+- "Ring-derived replay" only for saved Ring captures.
+- "Test fixture" for the shipped fixtures.
+- Never "real device" or "real camera" when the source is the Playground.
 
 ## 3. Not implemented (do not mention as features)
 
@@ -53,6 +64,9 @@ Until those steps are done, the demo source label reads **Test fixture (Ring-sha
 - elimination of human error;
 - real-world accuracy;
 - latency figures (not measured);
+- that HOLD physically stops anything (it blocks the application-level receiving workflow only);
 - "first camera workflow system".
+
+Product boundaries: SEQSEAL is not a WMS, ERP, generic video analytics, employee surveillance, a biometric system, an access-control controller, a universal SOP engine, process mining or an AI agent platform.
 
 Positioning that is safe to use: *SEQSEAL explores Ring as an evidence layer for protocol-bound physical workflow integrity, moving beyond isolated events toward explainable multi-step verification and operational gating.*
