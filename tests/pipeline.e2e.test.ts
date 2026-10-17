@@ -97,6 +97,37 @@ describe("Playground captures grounded in Ring history events, and Ring-derived 
     expect(exec!.workflow_status).toBe("RELEASED");
   });
 
+  it("the checklist hero follows a live Playground session: A fills in, then B next to it, never mixed with fixtures", async () => {
+    const rt = new LocalRuntime();
+    const rm = new ReadModel(rt.store, rt.pipeline.config, { backend: "local", interpreter: "mock" });
+    await rt.runScenario(scenario("correct-sequence"));
+    await rt.runScenario(scenario("wrong-sequence"));
+    expect((await rm.hero()).mode).toBe("pair");
+
+    for (const c of sessionA) await rt.ingestPlaygroundCapture(c); // live A, released
+    let hero = await rm.hero();
+    expect([hero.mode, hero.a?.execution.source_profiles[0], hero.b]).toEqual(["latest", "RING_PLAYGROUND", undefined]);
+
+    const later = (c: (typeof sessionA)[number], n: number, min: number) => ({ ...c, capture_id: `live-b-${n}`, ring_event: { ...c.ring_event, event_id: `live-b-${n}`, occurred_at: new Date(T0 + (20 + min) * 60_000).toISOString() } });
+    await rt.ingestPlaygroundCapture(later(sessionA[0]!, 0, 0)); // live B arrives
+    await rt.ingestPlaygroundCapture(later(sessionA[2]!, 1, 3)); // storage before staging
+    hero = await rm.hero();
+    expect(hero.mode).toBe("latest");
+    expect(hero.a?.execution.workflow_status).toBe("RELEASED");
+    expect(hero.b?.execution.status).toBe("ACTIVE");
+    expect(hero.b?.execution.workflow_status).toBe("WAITING");
+
+    await rt.ingestPlaygroundCapture(later(sessionA[1]!, 2, 6));
+    expect((await rm.hero()).b?.execution.workflow_status).toBe("HELD"); // proven violation: held before the delivery ends
+    await rt.ingestPlaygroundCapture(later(sessionA[3]!, 3, 9));
+    await rt.ingestPlaygroundCapture(later(sessionA[4]!, 4, 11));
+    hero = await rm.hero();
+    expect(hero.mode).toBe("pair");
+    expect([hero.a?.execution.source_profiles[0], hero.b?.execution.source_profiles[0]]).toEqual(["RING_PLAYGROUND", "RING_PLAYGROUND"]);
+    expect([hero.a?.execution.workflow_status, hero.b?.execution.workflow_status]).toEqual(["RELEASED", "HELD"]);
+    expect(hero.same_protocol && hero.same_policy && hero.same_mappings).toBe(true);
+  });
+
   it("replays a saved session as RING_DERIVED_REPLAY in its own lane: A released, B (swapped) held on ORDER-02", async () => {
     const rt = new LocalRuntime();
     const sessionB = [sessionA[0]!, sessionA[2]!, sessionA[1]!, sessionA[3]!, sessionA[4]!].map((c, i) => ({ ...c, capture_id: `b-${i}`, ring_event: { ...c.ring_event, event_id: `b-evt-${i}` } }));

@@ -254,22 +254,23 @@ export class ReadModel {
   async hero(): Promise<HeroView> {
     const all = await this.store.listExecutions(100);
     const newest = all[0];
+    const sameProfiles = (x: Execution, y: Execution) => x.source_profiles.join() === y.source_profiles.join();
     const sealed = all.find((e) => e.status === "FINALIZED" && e.latest_verdict === "SEALED" && e.workflow_status === "RELEASED");
-    const deviated = all.find((e) => e.latest_verdict === "DEVIATED" && e.workflow_status === "HELD" && (!sealed || e.protocol_hash === sealed.protocol_hash));
+    // The pair must be comparable: same protocol and same kind of source (never a live delivery next to a fixture).
+    const deviated = sealed ? all.find((e) => e.latest_verdict === "DEVIATED" && e.workflow_status === "HELD" && e.protocol_hash === sealed.protocol_hash && sameProfiles(e, sealed)) : undefined;
 
     let mode: HeroView["mode"] = "empty";
     let first: Execution | undefined;
     let second: Execution | undefined;
-    if (newest && newest.status !== "ACTIVE" && sealed && deviated) {
+    if (newest && newest.status !== "ACTIVE" && sealed && deviated && (newest === sealed || newest === deviated || sameProfiles(newest, sealed))) {
       mode = "pair";
       [first, second] = [sealed, deviated];
     } else if (newest) {
       mode = "latest";
       const prev = all[1];
-      const sameProfiles = (x: Execution, y: Execution) => x.source_profiles.join() === y.source_profiles.join();
       const endedAt = prev ? Date.parse(prev.finalized_at ?? prev.updated_at) : NaN;
       const session = !!prev && prev.status === "FINALIZED" && sameProfiles(prev, newest) && Date.parse(newest.created_at) - endedAt < 15 * 60_000;
-      [first, second] = newest.status === "ACTIVE" ? (session ? [prev, newest] : [newest, undefined]) : [prev, newest];
+      [first, second] = session ? [prev, newest] : [newest, undefined];
     }
     const [a, b] = await Promise.all([first ? this.executionDetail(first.execution_id) : undefined, second ? this.executionDetail(second.execution_id) : undefined]);
     const both = !!first && !!second;
