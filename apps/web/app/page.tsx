@@ -50,6 +50,8 @@ export default function ChecklistHero() {
   const b = runs ? liveB : hero?.b;
   const va = a && protocol ? checklistView(a, protocol) : undefined;
   const vb = b && protocol ? checklistView(b, protocol) : undefined;
+  // Show the source once when both deliveries share it (it is still on every card when they differ).
+  const sharedSource = va && vb && va.source === vb.source ? va.source : undefined;
   const canPlay = !!va && !!vb && va.release.tone === "seal" && vb.release.tone === "hold" && !va.active && !vb.active;
 
   const stop = useCallback(() => {
@@ -101,21 +103,29 @@ export default function ChecklistHero() {
   return (
     <>
       <section className="hero-head">
-        <p className="hero-context">Inbound delivery</p>
+        <p className="hero-context">
+          Inbound delivery
+          {sharedSource && (
+            <span className="hero-source">
+              <span className="dot" />
+              Source: {sharedSource}
+            </span>
+          )}
+        </p>
         <h1 className="display">Every box is checked. Order still matters.</h1>
         <p className="lede">
-          Ring watches the receiving dock. SEQSEAL unlocks <strong>Release delivery</strong> only when the steps really happened in the required order:{" "}
+          Ring cameras watch the receiving dock. SEQSEAL unlocks <strong>Release delivery</strong> only when the steps really happened in the required order:{" "}
           {protocol ? protocol.expected_sequence.slice(0, 3).map((x) => (protocol.labels[x] ?? x).charAt(0) + (protocol.labels[x] ?? x).slice(1).toLowerCase()).join(", then ") : "Arrival, then Staging, then Storage"}.
         </p>
         <div className="hero-controls">
           <button className="btn" onClick={replay} disabled={busy}>
-            {busy ? "Starting" : va || vb ? "Replay deliveries A and B" : "Run deliveries A and B"}
+            {busy ? "Starting" : va || vb ? "Run deliveries A and B again" : "Run deliveries A and B"}
           </button>
           <button className="btn secondary" onClick={stage ? stop : play} disabled={!canPlay && !stage} title={canPlay ? "" : "Available once Delivery A is released and Delivery B is held"}>
             {stage ? "Stop walkthrough" : "Play the 12-second walkthrough"}
           </button>
-          <button className="btn quiet" onClick={reset}>
-            Reset
+          <button className="btn quiet" onClick={reset} title="Clear all deliveries from this local demo">
+            Clear results
           </button>
         </div>
       </section>
@@ -130,14 +140,14 @@ export default function ChecklistHero() {
         )}
         <div className={`checklist-slot${focusB ? " dim" : ""}`}>
           {va ? (
-            <DeliveryChecklist title={labels[0]!} view={va} expanded={open.a} onToggle={() => setOpen((o) => ({ ...o, a: !o.a }))} emphasize={focusA || s === "split"} />
+            <DeliveryChecklist title={labels[0]!} view={va} showSource={!sharedSource} expanded={open.a} onToggle={() => setOpen((o) => ({ ...o, a: !o.a }))} emphasize={focusA || s === "split"} />
           ) : (
             <ChecklistPlaceholder title={labels[0]!} note={runs ? "Waiting for the first Ring observation" : "No delivery yet"} />
           )}
         </div>
         <div className={`checklist-slot${focusA ? " dim" : ""}`}>
           {vb ? (
-            <DeliveryChecklist title={labels[1]!} view={vb} expanded={open.b} onToggle={() => setOpen((o) => ({ ...o, b: !o.b }))} emphasize={s === "b-order" || s === "split"} />
+            <DeliveryChecklist title={labels[1]!} view={vb} showSource={!sharedSource} expanded={open.b} onToggle={() => setOpen((o) => ({ ...o, b: !o.b }))} emphasize={s === "b-order" || s === "split"} />
           ) : (
             <ChecklistPlaceholder title={labels[1]!} note={runs ? "Waiting for the first Ring observation" : va?.active ? "Waiting for the next delivery" : "No delivery yet"} />
           )}

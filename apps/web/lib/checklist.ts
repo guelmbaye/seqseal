@@ -20,6 +20,8 @@ export interface ChecklistRow {
   status: RowStatus;
   /** Part of the failed rule (shown amber when revealed). */
   flagged: boolean;
+  /** Short, specific note on the step that broke the rule, e.g. "came before Staging". */
+  flagNote?: string;
   /** Part of the protocol's signature rule, e.g. ORDER-02's STAGING and STORAGE. */
   signature: boolean;
 }
@@ -52,6 +54,12 @@ export interface ChecklistView {
 
 const hhmm = (iso?: string) => (iso ? iso.slice(11, 16) : "");
 const title = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+/** "STAGING must occur before STORAGE" → "Staging must come before Storage". */
+function sentence(ruleText: string, p: ProtocolView): string {
+  let out = ruleText.replace(" must occur ", " must come ");
+  for (const l of Object.values(p.labels)) out = out.split(l).join(title(l));
+  return out.charAt(0).toUpperCase() + out.slice(1);
+}
 
 export function checklistView(d: ExecutionDetail, p: ProtocolView): ChecklistView {
   const ev = d.evaluation;
@@ -68,10 +76,19 @@ export function checklistView(d: ExecutionDetail, p: ProtocolView): ChecklistVie
       unresolved.set(c.semantic_state, c.occurred_at);
     }
   }
+  // Which step broke the rule: for an ordering failure, the step that came too early.
+  const exp = (primary?.expected ?? {}) as { before?: string; after?: string; anchor?: string; target?: string };
+  const noteFor = (s: string): string | undefined => {
+    if (!primary || !flaggedStates.has(s)) return undefined;
+    if (primary.kind === "PRECEDENCE") return s === exp.after && exp.before ? `came before ${label(exp.before)}` : undefined;
+    if (primary.kind === "WITHIN") return s === exp.target ? "too late" : undefined;
+    return "not allowed";
+  };
   const rowFor = (s: string): ChecklistRow => {
     const at = observed.get(s) ?? unresolved.get(s);
     const status: RowStatus = observed.has(s) ? "checked" : unresolved.has(s) ? "unresolved" : "open";
-    return { state: s, label: label(s), ...(at ? { at } : {}), status, flagged: flaggedStates.has(s), signature: signatureStates.has(s) };
+    const note = noteFor(s);
+    return { state: s, label: label(s), ...(at ? { at } : {}), status, flagged: flaggedStates.has(s), ...(note ? { flagNote: note } : {}), signature: signatureStates.has(s) };
   };
   // Seen rows in the order they physically happened, then the steps still open in protocol order.
   const sortSeen = (states: string[]) => {
@@ -88,15 +105,15 @@ export function checklistView(d: ExecutionDetail, p: ProtocolView): ChecklistVie
   const material = ev?.uncertainty_items.find((i) => i.material);
   let release: ReleaseView;
   switch (status) {
-    case "RELEASED": {
-      const h = [...(d.workflow?.history ?? [])].reverse().find((x) => x.to === "RELEASED");
-      release = { locked: false, tone: "seal", reason: "Steps happened in the required order", ...(h ? { detail: `Released ${h.at.slice(11, 19)} UTC by ${h.event_type ?? "the Operational Gate"}` } : {}) };
+    case "RELEASED":
+      release = { locked: false, tone: "seal", reason: "Steps happened in the required order", detail: "The receiving workflow may proceed" };
       break;
-    }
     case "HELD": {
       const reason =
         primary?.kind === "PRECEDENCE" ? "Wrong order" : primary?.kind === "WITHIN" ? "Outside the time limit" : primary?.kind?.startsWith("FORBIDDEN") ? "Forbidden step" : "Protocol violation";
-      release = { locked: true, tone: "hold", reason, ...(primary ? { detail: `${primary.rule_id} failed` } : {}) };
+      // Say the rule in words, with its id, so "ORDER-02" never stands alone.
+      const ruleWords = primary ? sentence(p.rules.find((x) => x.id === primary.rule_id)?.text ?? primary.rule_id, p) : undefined;
+      release = { locked: true, tone: "hold", reason, ...(primary ? { detail: `${ruleWords} (${primary.rule_id})` } : {}) };
       break;
     }
     case "REVIEW_REQUIRED":

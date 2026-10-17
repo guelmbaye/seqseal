@@ -1,7 +1,7 @@
 {
   "benchmark": "seqseal-benchmark@0.1.0",
-  "generated_at": "2026-10-17T14:54:32.446Z",
-  "commit": "6d48fc4726d65a2c9b13d4ff921242717fa174ae",
+  "generated_at": "2026-10-17T15:01:15.395Z",
+  "commit": "219a10305117bf0d93633a6a948261c760d5d228",
   "protocol": {
     "ref": "IDP-01@1.0.0",
     "hash": "sha256:6f0ad940aa34c2821ff9b20c841ec5243a5f2f22b5b1adf61924ccca2da20d65"

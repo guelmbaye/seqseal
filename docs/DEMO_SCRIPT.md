@@ -9,8 +9,8 @@ pnpm install
 pnpm build && pnpm --filter @seqseal/web start      # or `pnpm demo`
 ```
 
-1. Open http://localhost:3000 and press **Reset**.
-2. Dry run: press **Replay deliveries A and B** 10 times in a row. Each run must end with Delivery A **Unlocked** and Delivery B **Locked: Wrong order**. Do not restart services, edit the database or run corrective scripts. `pnpm test:winning` also runs 100 × A and 100 × B.
+1. Open http://localhost:3000 and press **Clear results**.
+2. Dry run: press **Run deliveries A and B again** 10 times in a row. Each run must end with Delivery A **Unlocked** and Delivery B **Locked: Wrong order**. Do not restart services, edit the database or run corrective scripts. `pnpm test:winning` also runs 100 × A and 100 × B.
 3. Choose the source level. Its label is always on screen:
 
    | Level | What runs | Label shown |

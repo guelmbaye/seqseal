@@ -45,6 +45,7 @@ export function DeliveryChecklist({
   expanded,
   onToggle,
   emphasize,
+  showSource = true,
 }: {
   title: string;
   view: ChecklistView;
@@ -52,6 +53,8 @@ export function DeliveryChecklist({
   onToggle: () => void;
   /** Walkthrough focus: show the flagged / ordering rows highlighted. */
   emphasize?: boolean;
+  /** Show the source label on the card (the hero shows it once when both deliveries share a source). */
+  showSource?: boolean;
 }) {
   const whyId = useId();
   const r = view.release;
@@ -61,19 +64,26 @@ export function DeliveryChecklist({
       <header className="checklist-head">
         <h2>{title}</h2>
         <span className="checklist-ref">
-          <Link href={`/executions/${view.executionId}`}>{view.executionId}</Link>
+          <Link href={`/executions/${view.executionId}`} title="Open the full verification">
+            Verification {view.executionId}
+          </Link>
         </span>
-        <span className="checklist-source" title="Where these observations came from">
-          <span className={`dot${view.sourceProfile ? "" : " off"}`} />
-          {view.source}
-        </span>
+        {showSource && (
+          <span className="checklist-source" title="Where these observations came from">
+            <span className={`dot${view.sourceProfile ? "" : " off"}`} />
+            {view.source}
+          </span>
+        )}
       </header>
 
       <ol className="checklist-rows">
         {view.rows.map((row) => (
-          <li key={row.state} className={`checklist-row ${row.status}${row.flagged && showFlags ? " flagged" : ""}${row.signature && emphasize && !row.flagged ? " ordered" : ""}`}>
+          <li key={row.state} className={`checklist-row ${row.status}${row.flagged ? (showFlags ? " flagged" : " flag-hint") : ""}${row.signature && emphasize && !row.flagged ? " ordered" : ""}`}>
             <Box status={row.status} />
-            <span className="row-label">{row.label}</span>
+            <span className="row-label">
+              {row.label}
+              {row.flagNote && <span className="row-flag">{row.flagNote}</span>}
+            </span>
             <time className="row-time">{hhmm(row.at)}</time>
             <span className="sr-only">{ROW_STATUS[row.status]}</span>
           </li>
@@ -101,9 +111,14 @@ export function DeliveryChecklist({
         onClick={onToggle}
       >
         <span className="release-label">Release delivery</span>
-        <span className="release-state">
-          <LockIcon open={!r.locked} />
-          {r.locked ? "Locked" : "Unlocked"}
+        <span className="release-end">
+          <span className="release-state">
+            <LockIcon open={!r.locked} />
+            {r.locked ? "Locked" : "Unlocked"}
+          </span>
+          <svg className={`release-chevron${expanded ? " open" : ""}`} viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+            <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </span>
       </button>
       <p className="release-reason" data-tone={r.tone}>

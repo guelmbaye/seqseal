@@ -1160,3 +1160,87 @@ pre.source {
     grid-template-columns: 54px minmax(0, 1fr);
   }
 }
+
+/* Refinements from the cold-viewer test: the error is visible at rest, the button reads as a disclosure. */
+.hero-context {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+.hero-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 500;
+  font-size: var(--step--1);
+  color: var(--ink-3);
+}
+.row-flag {
+  display: none;
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hold);
+  color: var(--hold-ink);
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-variation-settings: "wdth" 112;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.checklist-row.flag-hint {
+  box-shadow: inset 5px 0 0 var(--hold);
+}
+.checklist-row.flag-hint .row-flag,
+.checklist-row.flagged .row-flag {
+  display: inline-block;
+}
+/* During the first walkthrough beats the list must look like a normal, fully checked checklist. */
+.stage-b-checked .checklist-row.flag-hint,
+.stage-b-locked .checklist-row.flag-hint {
+  box-shadow: none;
+}
+.stage-b-checked .row-flag,
+.stage-b-locked .row-flag {
+  display: none !important;
+}
+.release-end {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.release-chevron {
+  transition: transform 0.2s ease;
+  opacity: 0.8;
+}
+.release-chevron.open {
+  transform: rotate(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .release-chevron {
+    transition: none;
+  }
+}
+@media (max-width: 560px) {
+  .release-label {
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+  .release-state {
+    padding: 5px 9px 5px 8px;
+    font-size: 0.9rem;
+    gap: 5px;
+  }
+  .release-state svg {
+    width: 18px;
+    height: 18px;
+  }
+  .release-end {
+    gap: 6px;
+  }
+  .release-chevron {
+    width: 18px;
+    height: 18px;
+  }
+}

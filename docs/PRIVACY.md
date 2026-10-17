@@ -13,7 +13,7 @@ SEQSEAL works on events from cameras that watch people at work. It is designed t
 | Idempotency keys | hashed delivery and event identifiers | DynamoDB `idempotency` table | TTL (`expires_at`) |
 | Media (only if `ENABLE_BEDROCK_EVIDENCE=true`) | a single Ring snapshot for an observation that needs interpretation | S3 `media/` prefix, SSE-KMS | expires after 7 days (`media_expiration_days`) |
 
-The local demo keeps everything in memory, and a restart or **Reset** erases it.
+The local demo keeps everything in memory, and a restart or **Clear results** erases it.
 
 ## 2. What SEQSEAL does not do
 
