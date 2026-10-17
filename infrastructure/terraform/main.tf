@@ -300,6 +300,7 @@ module "lambdas" {
     FINALIZATION_GRACE_SECONDS = tostring(var.finalization_grace_seconds)
     EXECUTION_HORIZON_MINUTES  = tostring(var.execution_horizon_minutes)
     ENABLE_BEDROCK_EVIDENCE    = var.enable_bedrock_evidence ? "true" : "false"
+    BEDROCK_DISABLED           = var.enable_bedrock_evidence ? "false" : "true"
     BEDROCK_EVIDENCE_MODEL_ID  = var.bedrock_model_id
     DEMO_MODE                  = var.demo_mode ? "true" : "false"
     NODE_OPTIONS               = "--enable-source-maps"

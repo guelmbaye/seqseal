@@ -7,9 +7,14 @@ export * from "./replay";
 
 import type { RawSourceRecord } from "@seqseal/contracts";
 import { normalizeRingRecord, type NormalizeOutcome } from "./normalize";
-import { normalizePlaygroundRecord } from "./playground";
+import { isPlaygroundCapture, normalizePlaygroundRecord } from "./playground";
 
-/** Single entry point used by the pipeline: dispatch on source profile. */
+/**
+ * Single entry point used by the pipeline: dispatch on source profile. A Ring-derived replay
+ * carries either a saved Playground capture or a saved Ring webhook envelope.
+ */
 export function normalizeSourceRecord(record: RawSourceRecord): NormalizeOutcome {
-  return record.source_profile === "RING_PLAYGROUND" ? normalizePlaygroundRecord(record) : normalizeRingRecord({ record });
+  if (record.source_profile === "RING_PLAYGROUND") return normalizePlaygroundRecord(record);
+  if (record.source_profile === "RING_DERIVED_REPLAY" && isPlaygroundCapture(record.payload)) return normalizePlaygroundRecord(record);
+  return normalizeRingRecord({ record });
 }

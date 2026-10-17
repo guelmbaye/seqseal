@@ -42,9 +42,18 @@ export interface AwsRuntime {
   interpreter: EvidenceInterpreter;
 }
 
+/**
+ * Bedrock is used only when explicitly enabled, a model is configured and the kill switch
+ * BEDROCK_DISABLED is not set (Master Brief §33: the hero A/B path must work with
+ * BEDROCK_DISABLED=true). Even when enabled it can only propose evidence.
+ */
+export function bedrockEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.BEDROCK_DISABLED !== "true" && env.ENABLE_BEDROCK_EVIDENCE === "true" && !!env.BEDROCK_EVIDENCE_MODEL_ID;
+}
+
 function interpreterFor(store: S3ArtifactStore): EvidenceInterpreter {
   const modelId = process.env.BEDROCK_EVIDENCE_MODEL_ID ?? "";
-  if (process.env.ENABLE_BEDROCK_EVIDENCE === "true" && modelId) {
+  if (bedrockEnabled()) {
     return new BedrockEvidenceInterpreter(modelId, async (req) => {
       // Metadata first; media only when needed (Doc 04 §55). Snapshot captured by the
       // Playground adapter, else a fresh Ring snapshot for webhook observations.
@@ -54,7 +63,8 @@ function interpreterFor(store: S3ArtifactStore): EvidenceInterpreter {
       }
       const device = req.observation.source_device_ref;
       const token = await getSecret(process.env.RING_API_TOKEN_SECRET_ARN);
-      if (!device || !token || req.observation.source_profile === "FIXTURE_REPLAY") return undefined;
+      // Never fetch fresh media for a replay: it would not show the replayed moment.
+      if (!device || !token || req.observation.source_profile === "FIXTURE_REPLAY" || req.observation.source_profile === "RING_DERIVED_REPLAY") return undefined;
       const ring = new RingApiClient({ baseUrl: process.env.RING_API_BASE_URL ?? "https://api.amazonvision.com", accessToken: token });
       const snap = await ring.downloadSnapshot(device, req.observation.source_component_refs);
       await store.putBytes(`media/${req.observation.observation_id}.jpg`, snap.data, "image/jpeg");
@@ -87,7 +97,8 @@ export async function awsRuntime(service: string): Promise<AwsRuntime> {
     backend: `aws:${process.env.SEQSEAL_ENVIRONMENT ?? "dev"}`,
     interpreter: interpreter.id,
     flags: {
-      ENABLE_BEDROCK_EVIDENCE: process.env.ENABLE_BEDROCK_EVIDENCE === "true",
+      ENABLE_BEDROCK_EVIDENCE: bedrockEnabled(),
+      BEDROCK_DISABLED: process.env.BEDROCK_DISABLED === "true",
       DEMO_MODE: process.env.DEMO_MODE === "true",
     },
   });

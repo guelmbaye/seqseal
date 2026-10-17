@@ -30,8 +30,63 @@ export const PlaygroundCapture = z.object({
     response_excerpt: z.unknown().optional(),
   }),
   operator_note: z.string().optional(),
+  /**
+   * The Ring history event the simulation produced, when the capture could find it
+   * (GET /v1/history/devices/{id}/events right after the simulation). When present it is the
+   * source event reference and its timestamp is the physical occurrence time.
+   */
+  ring_event: z
+    .object({
+      event_id: z.string().min(1),
+      event_type: z.string().optional(),
+      occurred_at: z.string().datetime({ offset: true }).optional(),
+    })
+    .optional(),
 });
 export type PlaygroundCapture = z.infer<typeof PlaygroundCapture>;
+
+/** Profiles a Playground capture may be ingested under: live, or replayed later from a saved session. */
+export const CAPTURE_PROFILES = ["RING_PLAYGROUND", "RING_DERIVED_REPLAY"] as const;
+export type CaptureProfile = (typeof CAPTURE_PROFILES)[number];
+
+export function isPlaygroundCapture(payload: unknown): boolean {
+  return PlaygroundCapture.safeParse(payload).success;
+}
+
+/**
+ * Pick the newest event from a Ring event-history response. Tolerant on purpose: the exact
+ * shape must be confirmed during the Ring Source Spike (docs/ring-playground-observations.md),
+ * so it accepts a JSON:API `data` array, `events`/`items` arrays or a bare array, and reads
+ * `id`/`event_id`, `type`/`event_type` and an epoch-ms or ISO timestamp from the item or its
+ * `attributes`. Returns undefined when nothing identifiable is found — it never invents an event.
+ */
+export function latestHistoryEvent(body: unknown): { event_id: string; event_type?: string; occurred_at?: string; raw: unknown } | undefined {
+  const obj = (body ?? {}) as Record<string, unknown>;
+  const list = Array.isArray(body) ? body : [obj.data, obj.events, obj.items, obj.results].find(Array.isArray);
+  if (!Array.isArray(list)) return undefined;
+  const toIsoTime = (v: unknown): string | undefined => {
+    if (typeof v === "number" && Number.isFinite(v)) return new Date(v < 1e12 ? v * 1000 : v).toISOString();
+    if (typeof v === "string") {
+      if (/^\d{10,13}$/.test(v)) return toIsoTime(Number(v));
+      const t = Date.parse(v);
+      return Number.isNaN(t) ? undefined : new Date(t).toISOString();
+    }
+    return undefined;
+  };
+  let best: { event_id: string; event_type?: string; occurred_at?: string; raw: unknown } | undefined;
+  for (const item of list) {
+    if (!item || typeof item !== "object") continue;
+    const it = item as Record<string, unknown>;
+    const at = (it.attributes ?? {}) as Record<string, unknown>;
+    const id = it.id ?? it.event_id ?? at.id ?? at.event_id;
+    if (typeof id !== "string" && typeof id !== "number") continue;
+    const type = it.event_type ?? at.event_type ?? at.type ?? it.type;
+    const when = toIsoTime(at.timestamp ?? it.timestamp ?? at.created_at ?? it.created_at ?? at.start_time ?? it.start_time ?? at.time ?? it.time);
+    const cand = { event_id: String(id), ...(typeof type === "string" ? { event_type: type } : {}), ...(when ? { occurred_at: when } : {}), raw: item };
+    if (!best || (cand.occurred_at ?? "") > (best.occurred_at ?? "")) best = cand;
+  }
+  return best;
+}
 
 export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOutcome {
   const r = PlaygroundCapture.safeParse(record.payload);
@@ -40,22 +95,25 @@ export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOut
   if (cap.api_evidence.http_status < 200 || cap.api_evidence.http_status >= 300) {
     return { ok: false, error: `Playground capture ${cap.capture_id} has no successful Ring API call (HTTP ${cap.api_evidence.http_status}); refusing to create provenance.` };
   }
-  const eventKey = eventIdempotencyKey("RING_PLAYGROUND", cap.capture_id, record.replay?.run_id);
+  const profile: CaptureProfile = record.source_profile === "RING_DERIVED_REPLAY" ? "RING_DERIVED_REPLAY" : "RING_PLAYGROUND";
+  // A real Ring history event is the identity of the observation: capturing it twice is one event.
+  const sourceEventRef = cap.ring_event?.event_id ?? cap.capture_id;
+  const eventKey = eventIdempotencyKey(profile, sourceEventRef, record.replay?.run_id);
   const observation: NormalizedObservation = {
     schema_version: SCHEMA_VERSION,
     observation_id: observationIdFor(eventKey),
     correlation_id: record.correlation_id,
     family: "WORKFLOW_PHYSICAL",
     source_provider: "ring",
-    source_profile: "RING_PLAYGROUND",
+    source_profile: profile,
     ...(cap.device_id ? { source_device_ref: cap.device_id } : {}),
     source_component_refs: cap.component_id ? [cap.component_id] : [],
-    source_event_ref: cap.capture_id,
+    source_event_ref: sourceEventRef,
     ...(cap.api_evidence.request_id ? { request_ref: cap.api_evidence.request_id } : {}),
     event_type: "live_view_simulation",
     simulation_source: cap.simulation_source,
     ...(cap.media_session_ref ? { media_session_ref: cap.media_session_ref } : {}),
-    occurred_at: new Date(Date.parse(cap.captured_at)).toISOString(),
+    occurred_at: new Date(Date.parse(cap.ring_event?.occurred_at ?? cap.captured_at)).toISOString(),
     received_at: record.received_at,
     time_precision_ms: 1000,
     source_health: "HEALTHY",
@@ -66,6 +124,9 @@ export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOut
       api_endpoint: cap.api_evidence.endpoint,
       api_status: cap.api_evidence.http_status,
       zone_binding: "declared by operator at capture session",
+      capture_id: cap.capture_id,
+      time_source: cap.ring_event?.occurred_at ? "ring history event timestamp" : "capture time",
+      ...(cap.ring_event?.event_type ? { ring_event_type: cap.ring_event.event_type } : {}),
       ...(cap.operator_note ? { operator_note: cap.operator_note } : {}),
     },
     ...(record.replay ? { replay: record.replay } : {}),
@@ -76,7 +137,7 @@ export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOut
     eventKey,
     event: {
       request_id: cap.api_evidence.request_id ?? cap.capture_id,
-      event_id: cap.capture_id,
+      event_id: sourceEventRef,
       event_type: "live_view_simulation",
       component_ids: observation.source_component_refs,
       raw: { meta: { request_id: cap.capture_id }, data: { id: cap.capture_id, type: "live_view_simulation" } },

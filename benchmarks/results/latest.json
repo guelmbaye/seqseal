@@ -1,7 +1,7 @@
 {
   "benchmark": "seqseal-benchmark@0.1.0",
-  "generated_at": "2026-10-14T14:33:52.767Z",
-  "commit": "e002482e976536ec91d3e2ebac26c9c2c1b6517d",
+  "generated_at": "2026-10-17T14:40:44.596Z",
+  "commit": "da44e4360416e4ae1755f116f2ae880f5797b924",
   "protocol": {
     "ref": "IDP-01@1.0.0",
     "hash": "sha256:6f0ad940aa34c2821ff9b20c841ec5243a5f2f22b5b1adf61924ccca2da20d65"
@@ -49,7 +49,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -97,7 +99,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -141,7 +145,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -187,7 +193,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -233,7 +241,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -279,7 +289,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -326,7 +338,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -370,7 +384,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -413,7 +429,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -456,7 +474,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -494,7 +514,9 @@
       },
       "replay": {
         "receipts": 0,
-        "consistent": 0
+        "consistent": 0,
+        "verdict_consistent": 0,
+        "action_consistent": 0
       },
       "provenance": {
         "evidence": 0,
@@ -537,7 +559,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -583,7 +607,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -629,7 +655,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -672,11 +700,63 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
         "traceable": 4
+      },
+      "release_invariant_violations": 0,
+      "duplicate_action_events": 0,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "id": "B15",
+      "scenario_id": "b15-duplicate-operational-decision",
+      "label": "Each OperationalDecision and ActionApplied delivered three times (at-least-once queues) — one WorkflowReleased, one receipt",
+      "category": "idempotency",
+      "supported": true,
+      "expected": {
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "supported": true,
+        "receipt_versions": 1,
+        "action_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0
+        }
+      },
+      "observed": {
+        "executions": 1,
+        "verdict": "SEALED",
+        "action": "RELEASE",
+        "workflow_status": "RELEASED",
+        "primary_rule": null,
+        "receipts": 1,
+        "ever_released": true,
+        "ever_held": false,
+        "final_sealed": true,
+        "business_events": {
+          "WorkflowReleased": 1,
+          "WorkflowHeld": 0,
+          "WorkflowReviewRequired": 0,
+          "WorkflowAwaitingEvidence": 1
+        },
+        "system_errors": [],
+        "evidence_count": 5
+      },
+      "replay": {
+        "receipts": 1,
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
+      },
+      "provenance": {
+        "evidence": 5,
+        "traceable": 5
       },
       "release_invariant_violations": 0,
       "duplicate_action_events": 0,
@@ -717,7 +797,9 @@
       },
       "replay": {
         "receipts": 0,
-        "consistent": 0
+        "consistent": 0,
+        "verdict_consistent": 0,
+        "action_consistent": 0
       },
       "provenance": {
         "evidence": 5,
@@ -763,7 +845,9 @@
       },
       "replay": {
         "receipts": 0,
-        "consistent": 0
+        "consistent": 0,
+        "verdict_consistent": 0,
+        "action_consistent": 0
       },
       "provenance": {
         "evidence": 5,
@@ -810,7 +894,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -856,7 +942,9 @@
       },
       "replay": {
         "receipts": 2,
-        "consistent": 2
+        "consistent": 2,
+        "verdict_consistent": 2,
+        "action_consistent": 2
       },
       "provenance": {
         "evidence": 5,
@@ -899,7 +987,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -942,7 +1032,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -989,7 +1081,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -1034,7 +1128,9 @@
       },
       "replay": {
         "receipts": 2,
-        "consistent": 2
+        "consistent": 2,
+        "verdict_consistent": 2,
+        "action_consistent": 2
       },
       "provenance": {
         "evidence": 5,
@@ -1078,7 +1174,9 @@
       },
       "replay": {
         "receipts": 2,
-        "consistent": 2
+        "consistent": 2,
+        "verdict_consistent": 2,
+        "action_consistent": 2
       },
       "provenance": {
         "evidence": 4,
@@ -1121,7 +1219,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -1164,7 +1264,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -1211,7 +1313,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 3,
@@ -1254,7 +1358,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 6,
@@ -1298,7 +1404,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -1342,7 +1450,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 5,
@@ -1385,7 +1495,9 @@
       },
       "replay": {
         "receipts": 1,
-        "consistent": 1
+        "consistent": 1,
+        "verdict_consistent": 1,
+        "action_consistent": 1
       },
       "provenance": {
         "evidence": 4,
@@ -1420,25 +1532,29 @@
   "determinism": {
     "engine_runs": 200,
     "engine_consistent": true,
-    "pipeline_runs": 20,
-    "pipeline_expected": 20
+    "pipeline_runs": 200,
+    "pipeline_expected": 200,
+    "a_sealed_released": 100,
+    "b_deviated_held": 100
   },
   "metrics": {
-    "scenarios": 31,
-    "passed": 31,
+    "scenarios": 32,
+    "passed": 32,
     "unsupported": 21,
-    "supported": 10,
+    "supported": 11,
     "false_sealed": 0,
     "false_release": 0,
     "false_hold": 0,
-    "verdict_checked": 29,
-    "verdict_correct": 29,
-    "action_checked": 28,
-    "action_correct": 28,
-    "receipts": 31,
-    "replay_consistent": 31,
-    "evidence_items": 140,
-    "evidence_traceable": 140,
+    "verdict_checked": 30,
+    "verdict_correct": 30,
+    "action_checked": 29,
+    "action_correct": 29,
+    "receipts": 32,
+    "replay_consistent": 32,
+    "verdict_replay_consistent": 32,
+    "action_replay_consistent": 32,
+    "evidence_items": 145,
+    "evidence_traceable": 145,
     "release_invariant_violations": 0,
     "duplicate_action_events": 0
   }

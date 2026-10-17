@@ -1,10 +1,10 @@
 # SEQSEAL benchmark results — seqseal-benchmark@0.1.0
 
-Generated 2026-10-14T14:33:52.767Z · commit `e002482e976536ec91d3e2ebac26c9c2c1b6517d`
+Generated 2026-10-17T14:40:44.596Z · commit `da44e4360416e4ae1755f116f2ae880f5797b924`
 
 Protocol `IDP-01@1.0.0` (sha256:6f0ad940aa34…) · Action policy `IDP-ACTION@1.0.0` (sha256:adfb18d6283f…) · seqseal-engine@0.1.0 · interpreter: mock-evidence-interpreter@1 (deterministic fixture hints)
 
-> Engineering run on the defined benchmark only. These numbers are bounded to these 31 constructed scenarios; they are not real-world accuracy claims.
+> Engineering run on the defined benchmark only. These numbers are bounded to these 32 constructed scenarios; they are not real-world accuracy claims.
 
 ## Safety metrics
 
@@ -12,16 +12,19 @@ Protocol `IDP-01@1.0.0` (sha256:6f0ad940aa34…) · Action policy `IDP-ACTION@1.
 |---|---|
 | False SEALED (unsupported executions SEALED) | **0/21** |
 | False RELEASE (unsupported executions RELEASED) | **0/21** |
-| False HOLD (supported executions HELD) | 0/10 |
+| False HOLD (supported executions HELD) | 0/11 |
 | RELEASE ⇒ SEALED violations | 0 |
 | Duplicate operational events | 0 |
-| Verdict accuracy | 29/29 (100.0%) |
-| Action accuracy | 28/28 (100.0%) |
-| Receipt replay consistency (verdict + action + hashes) | 31/31 (100.0%) |
-| Provenance completeness (evidence → observation → raw source) | 140/140 (100.0%) |
+| Verdict accuracy | 30/30 (100.0%) |
+| Action accuracy | 29/29 (100.0%) |
+| Replay consistency (same protocol + evidence + engine → same verdict) | 32/32 (100.0%) |
+| Action replay consistency (+ same policy → same action) | 32/32 (100.0%) |
+| Receipt replay, all checks incl. receipt hash | 32/32 (100.0%) |
+| Provenance completeness (evidence → observation → raw source) | 145/145 (100.0%) |
 | Engine determinism (100× A + 100× B, shuffled input order) | consistent |
-| Pipeline reliability (10× A→RELEASED, 10× B→HELD) | 20/20 |
-| Scenarios passing all assertions | 31/31 |
+| First implementation goal: 100× A → SEALED → RELEASE | 100/100 |
+| First implementation goal: 100× B → DEVIATED → HOLD | 100/100 |
+| Scenarios passing all assertions | 32/32 |
 
 ## Scenarios
 
@@ -42,6 +45,7 @@ Protocol `IDP-01@1.0.0` (sha256:6f0ad940aa34…) · Action policy `IDP-ACTION@1.
 | B12 | AI interpretation required for STAGING but the model is unavailable | UNCERTAIN → REVIEW | UNCERTAIN → REVIEW | — | 1 | PASS |
 | B13 | Model output tries to add verdict/release fields — strict schema rejects it | UNCERTAIN → REVIEW | UNCERTAIN → REVIEW | — | 1 | PASS |
 | B13b | Scene text tries to make the model invent a different workflow state | UNCERTAIN → REVIEW | UNCERTAIN → REVIEW | — | 1 | PASS |
+| B15 | Each OperationalDecision and ActionApplied delivered three times (at-least-once queues) — one WorkflowReleased, one receipt | SEALED → RELEASE | SEALED → RELEASE | — | 1 | PASS |
 | B16 | Sequence Integrity Engine throws — system error, never a semantic verdict | system error ENGINE_ERROR | — → PENDING (ENGINE_ERROR) | — | 0 | PASS |
 | B17 | Operational Gate fails after a valid RELEASE decision — receipt must not claim RELEASED | SEALED | SEALED → PENDING (GATE_ERROR) | — | 0 | PASS |
 | B18 | STAGING delivered late (after DEPARTURE) but occurred before STORAGE | SEALED → RELEASE | SEALED → RELEASE | — | 1 | PASS |

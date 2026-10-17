@@ -40,13 +40,13 @@ export async function replayReceipt(store: SeqSealStore, config: PipelineConfig,
   const check: ReplayCheck = {
     receipt_id: receipt.receipt_id,
     receipt_hash_valid: verifyReceiptHash(receipt),
-    protocol_hash_match: config.protocol.hash === receipt.protocol.hash,
-    policy_hash_match: config.policy.hash === receipt.action_policy.hash,
+    protocol_hash_match: config.protocol.hash === receipt.protocol_hash,
+    policy_hash_match: config.policy.hash === receipt.action_policy_hash,
     evidence_set_hash_match: result.evidence_set_hash === receipt.evidence_set_hash,
     verdict_match: result.verdict === receipt.verdict,
-    action_match: action === receipt.operational.action,
+    action_match: action === receipt.operational_action,
     replayed: { verdict: result.verdict, action, evidence_set_hash: result.evidence_set_hash },
-    original: { verdict: receipt.verdict, action: receipt.operational.action, evidence_set_hash: receipt.evidence_set_hash },
+    original: { verdict: receipt.verdict, action: receipt.operational_action, evidence_set_hash: receipt.evidence_set_hash },
     consistent: false,
   };
   check.consistent =

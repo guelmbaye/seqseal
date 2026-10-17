@@ -137,6 +137,17 @@ export interface DecideInput {
 }
 
 /** Map one workflow evaluation to an operational decision under a policy. Deterministic. */
+/**
+ * Master Brief §20 contract in its smallest form: decide(verdict, actionPolicy) → action.
+ * Pure. `final` says whether the verdict comes from a FINAL evaluation; a provisional verdict
+ * maps to an action that may only be applied now if the policy lists it as provisional.
+ */
+export function actionFor(verdict: Verdict, policy: ActionPolicy, { final = true }: { final?: boolean } = {}): { verdict: Verdict; action: Action; apply_now: boolean } {
+  const action = policy.mappings[verdict];
+  if (action === "RELEASE" && verdict !== "SEALED") throw new ReleaseInvariantViolation(verdict);
+  return { verdict, action, apply_now: final || policy.provisionalActions.includes(action) };
+}
+
 export function decide({ evaluation, policy, now, amends }: DecideInput): PolicyOutcome {
   const verdict = evaluation.verdict;
   const action = policy.mappings[verdict];

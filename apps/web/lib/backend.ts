@@ -1,8 +1,10 @@
 import "server-only";
 import {
   handleReadApi,
+  listCaptureSessions,
   listScenarios,
   LocalRuntime,
+  loadCaptureSession,
   loadScenario,
   ReadModel,
   type ApiResponse,
@@ -88,6 +90,14 @@ export async function demoAction(action: string, body: Record<string, unknown>):
       setTimeout(() => launch("wrong-sequence", b), 250);
       return { status: 202, body: { runs: [{ run_id: a, scenario_id: "correct-sequence" }, { run_id: b, scenario_id: "wrong-sequence" }] } };
     }
+    case "run-captures": {
+      // Ring-derived replay of a saved Playground session (demo fallback level 2).
+      const session = String(body.session ?? "");
+      if (!listCaptureSessions().some((x) => x.id === session)) return { status: 400, body: { error: `Unknown capture session "${session}"` } };
+      const runId = newRunId("rdr");
+      void rt.runCaptures(loadCaptureSession(session), { runId, session, delayMs: PACE_MS }).catch((err) => console.error("[seqseal] ring-derived replay failed", err));
+      return { status: 202, body: { runs: [{ run_id: runId, scenario_id: `ring-derived:${session}` }] } };
+    }
     case "finalize": {
       const id = String(body.execution_id ?? "");
       await rt.finalize(id, "OPERATOR_CLOSE");
@@ -125,8 +135,15 @@ export async function localWebhook(rawBody: string, headers: Record<string, stri
   return { status: r.status, body: r };
 }
 
-export async function localPlaygroundCapture(capture: unknown): Promise<ApiResponse> {
+/**
+ * Playground capture endpoint. `x-seqseal-source-profile: RING_DERIVED_REPLAY` marks a capture
+ * replayed from a saved session (scripts/replay.ts --captures); anything else is a live capture.
+ */
+export async function localPlaygroundCapture(capture: unknown, headers: Record<string, string> = {}): Promise<ApiResponse> {
   if (mode === "remote") return proxy("POST", "/integrations/ring/playground/capture", capture);
-  const r = await local().rt.ingestPlaygroundCapture(capture);
+  const derived = headers["x-seqseal-source-profile"] === "RING_DERIVED_REPLAY";
+  const run = headers["x-seqseal-replay-run"];
+  const replay = derived && run ? { run_id: run, scenario_id: "ring-derived:remote", label: "Ring-derived replay" } : undefined;
+  const r = await local().rt.ingestPlaygroundCapture(capture, replay, derived ? "RING_DERIVED_REPLAY" : "RING_PLAYGROUND");
   return { status: r.status, body: r };
 }

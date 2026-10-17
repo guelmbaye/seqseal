@@ -239,10 +239,14 @@ export class SeqSealPipeline {
   }
 
   /** Ring Developer Playground capture (actual Ring API call recorded as provenance). */
-  async ingestPlaygroundCapture(capture: unknown, replay?: { run_id: string; scenario_id: string; label?: string }): Promise<IngestResult> {
+  async ingestPlaygroundCapture(
+    capture: unknown,
+    replay?: { run_id: string; scenario_id: string; label?: string },
+    profile: "RING_PLAYGROUND" | "RING_DERIVED_REPLAY" = "RING_PLAYGROUND",
+  ): Promise<IngestResult> {
     const parsed = PlaygroundCapture.safeParse(capture);
     if (!parsed.success) return { status: 400, outcome: "MALFORMED", error: parsed.error.message };
-    const key = deliveryIdempotencyKey("RING_PLAYGROUND", parsed.data.capture_id, replay?.run_id);
+    const key = deliveryIdempotencyKey(profile, parsed.data.capture_id, replay?.run_id);
     const ids = this.idsFor(key);
     if (!(await this.store.claim(key, { kind: "playground" }))) {
       return { status: 200, outcome: "DUPLICATE_DELIVERY", source_record_id: ids.record, correlation_id: ids.correlation };
@@ -250,10 +254,10 @@ export class SeqSealPipeline {
     const record: RawSourceRecord = {
       source_record_id: ids.record,
       provider: "ring",
-      source_profile: "RING_PLAYGROUND",
+      source_profile: profile,
       idempotency_key: key,
       ...(parsed.data.api_evidence.request_id ? { request_ref: parsed.data.api_evidence.request_id } : {}),
-      source_event_ref: parsed.data.capture_id,
+      source_event_ref: parsed.data.ring_event?.event_id ?? parsed.data.capture_id,
       received_at: this.clock(),
       signature_verified: false,
       correlation_id: ids.correlation,
@@ -261,7 +265,7 @@ export class SeqSealPipeline {
       ...(replay ? { replay } : {}),
     };
     await this.store.putRawRecord(record);
-    await this.emit([this.ev("RingSourceEventReceived", ids.correlation, { source_record_id: record.source_record_id, source_profile: "RING_PLAYGROUND" })]);
+    await this.emit([this.ev("RingSourceEventReceived", ids.correlation, { source_record_id: record.source_record_id, source_profile: profile })]);
     return { status: 202, outcome: "ACCEPTED", source_record_id: record.source_record_id, correlation_id: ids.correlation };
   }
 
@@ -485,6 +489,7 @@ export class SeqSealPipeline {
       protocol_ref: this.protocol.ref,
       protocol_hash: this.protocol.hash,
       action_policy_ref: this.config.policy.ref,
+      source_config_hash: this.config.sources.hash,
       status: "ACTIVE",
       opened_at: candidate.occurred_at,
       opened_by_evidence: evidenceIdFor(candidate.candidate_id),
@@ -734,7 +739,7 @@ export class SeqSealPipeline {
     const decision = await this.store.getDecision(decisionId);
     if (!execution || !decision || !decision.final) return [];
     const existing = await this.store.listExecutionReceipts(executionId);
-    if (existing.some((r) => r.operational.decision_id === decisionId)) return [];
+    if (existing.some((r) => r.operational_decision_id === decisionId)) return [];
     const evaluation = await this.store.getEvaluation(decision.evaluation_id);
     if (!evaluation) throw new Error(`Evaluation ${decision.evaluation_id} not found`);
     const { wf } = await this.store.getWorkflow(executionId);
@@ -757,7 +762,7 @@ export class SeqSealPipeline {
       e.updated_at = this.clock();
     });
     return this.emit([
-      this.ev("ReceiptGenerated", execution.correlation_id, { receipt_id: receipt.receipt_id, verdict: receipt.verdict, action: receipt.operational.action, receipt_hash: receipt.receipt_hash, version: receipt.receipt_version }, executionId),
+      this.ev("ReceiptGenerated", execution.correlation_id, { receipt_id: receipt.receipt_id, verdict: receipt.verdict, action: receipt.operational_action, receipt_hash: receipt.receipt_hash, version: receipt.receipt_version }, executionId),
     ]);
   }
 

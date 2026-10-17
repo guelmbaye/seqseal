@@ -22,8 +22,13 @@ export const ACTION_TO_STATUS: Record<Action, WorkflowStatus> = {
   REVIEW: "REVIEW_REQUIRED",
 };
 
-/** Where an observation came from. Never blurred in the UI (Doc 04 §10). */
-export const SOURCE_PROFILES = ["RING_PLAYGROUND", "RING_WEBHOOK", "RING_STAGING", "FIXTURE_REPLAY", "CUSTOM_MEDIA"] as const;
+/**
+ * Where an observation came from. Never blurred in the UI (Doc 04 §10, Master Brief §25).
+ * RING_DERIVED_REPLAY: events that really came from Ring (captured webhooks or Playground
+ * captures) replayed later through the normal pipeline. FIXTURE_REPLAY: hand-written,
+ * Ring-shaped test fixtures. CUSTOM_MEDIA is never presented as Ring evidence.
+ */
+export const SOURCE_PROFILES = ["RING_PLAYGROUND", "RING_WEBHOOK", "RING_STAGING", "RING_DERIVED_REPLAY", "FIXTURE_REPLAY", "CUSTOM_MEDIA"] as const;
 export const SourceProfile = z.enum(SOURCE_PROFILES);
 export type SourceProfile = z.infer<typeof SourceProfile>;
 
@@ -31,6 +36,7 @@ export const SOURCE_PROFILE_LABEL: Record<SourceProfile, string> = {
   RING_PLAYGROUND: "Ring Developer Playground",
   RING_WEBHOOK: "Ring Webhook",
   RING_STAGING: "Ring Staging",
+  RING_DERIVED_REPLAY: "Ring-Derived Replay",
   FIXTURE_REPLAY: "Test Fixture Replay",
   CUSTOM_MEDIA: "Custom Demo Media — Not Ring",
 };

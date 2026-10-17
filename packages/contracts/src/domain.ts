@@ -223,6 +223,41 @@ export const Counterfactual = z.object({
 });
 export type Counterfactual = z.infer<typeof Counterfactual>;
 
+/**
+ * Evidence Graph — the observed model (Master Brief §7). Nodes are protocol states with the
+ * accepted evidence that supports them; observed edges are temporal relations derived from
+ * physical time and its precision; protocol edges overlay what PWPS expected on top of what
+ * was observed. Built by the engine from the same timeline the rules are evaluated on.
+ */
+export const EvidenceGraphNode = z.object({
+  state: z.string(),
+  status: z.enum(["PRESENT", "ABSENT", "UNRESOLVED"]),
+  occurred_at: IsoTime.optional(),
+  precision_ms: z.number().int().nonnegative().optional(),
+  evidence_refs: z.array(z.string()),
+  reason: z.string().optional(),
+});
+export const EvidenceGraphEdge = z.object({
+  from: z.string(),
+  to: z.string(),
+  relation: z.enum(["OBSERVED_BEFORE", "ORDER_UNDETERMINED"]),
+  delta_ms: z.number().int(),
+});
+export const ProtocolGraphEdge = z.object({
+  rule_id: z.string(),
+  from: z.string(),
+  to: z.string(),
+  relation: z.enum(["MUST_PRECEDE", "WITHIN"]),
+  status: z.string(),
+  observed: z.enum(["OBSERVED_BEFORE", "OBSERVED_AFTER", "ORDER_UNDETERMINED", "NOT_OBSERVED"]),
+});
+export const EvidenceGraph = z.object({
+  nodes: z.array(EvidenceGraphNode),
+  edges: z.array(EvidenceGraphEdge),
+  protocol_edges: z.array(ProtocolGraphEdge),
+});
+export type EvidenceGraph = z.infer<typeof EvidenceGraph>;
+
 /** Pure output of the Sequence Integrity Engine (deterministic given its inputs). */
 export const EngineResult = z.object({
   engine_version: z.string(),
@@ -245,6 +280,7 @@ export const EngineResult = z.object({
   complete: z.boolean(),
   explanation: z.string(),
   counterfactual: Counterfactual.optional(),
+  evidence_graph: EvidenceGraph.optional(),
 });
 export type EngineResult = z.infer<typeof EngineResult>;
 
@@ -330,6 +366,8 @@ export const Execution = z.object({
   protocol_ref: z.string(),
   protocol_hash: z.string(),
   action_policy_ref: z.string(),
+  /** Hash of the source bindings + evidence mappings in force when the execution opened. */
+  source_config_hash: z.string().optional(),
   status: ExecutionStatus,
   opened_at: IsoTime,
   opened_by_evidence: z.string(),
@@ -365,19 +403,44 @@ export const ReceiptEvidence = z.object({
 });
 export type ReceiptEvidence = z.infer<typeof ReceiptEvidence>;
 
+/**
+ * One link of the receipt explanation chain (Master Brief §35), e.g. for Delivery B:
+ *   HOLD ← because ActionPolicy DEVIATED → HOLD ← because ORDER-02 FAILED
+ *        ← because STORAGE 14:03 occurred before STAGING 14:06 ← based on Ring-derived evidence.
+ * Built deterministically from the evaluation, the decision and the evidence — never by an LLM.
+ */
+export const ExplanationLink = z.object({
+  kind: z.enum(["ACTION", "POLICY", "VERDICT", "RULE", "OBSERVATION", "EVIDENCE"]),
+  connector: z.enum(["", "because", "based on"]),
+  text: z.string(),
+  refs: z.array(z.string()),
+});
+export type ExplanationLink = z.infer<typeof ExplanationLink>;
+
+export const SourceEvidenceRef = z.object({
+  evidence_id: z.string(),
+  state: z.string(),
+  source_profile: SourceProfile,
+  source_event_ref: z.string().optional(),
+  observation_ref: z.string().optional(),
+});
+export type SourceEvidenceRef = z.infer<typeof SourceEvidenceRef>;
+
+/** Field names follow the Master Brief §34 receipt contract. */
 export const SeqSealReceipt = z.object({
   receipt_id: Id,
   receipt_version: z.number().int().positive(),
   supersedes: z.string().optional(),
   stage: ReceiptStage,
   execution_id: Id,
-  protocol: z.object({ id: z.string(), version: z.string(), name: z.string(), hash: z.string() }),
-  action_policy: z.object({ id: z.string(), version: z.string(), hash: z.string() }),
-  engine_version: z.string(),
-  policy_engine_version: z.string(),
-  evaluation_id: z.string(),
+  protocol_id: z.string(),
+  protocol_version: z.string(),
+  protocol_name: z.string(),
+  protocol_hash: z.string(),
   evidence_set_hash: z.string(),
+  engine_version: z.string(),
   input_hash: z.string(),
+  evaluation_id: z.string(),
   expected_sequence: z.array(z.string()),
   observed_sequence: z.array(ObservedStep),
   rule_results: z.array(
@@ -386,15 +449,25 @@ export const SeqSealReceipt = z.object({
   primary_failures: z.array(z.string()),
   verdict: Verdict,
   explanation: z.string(),
+  action_policy_id: z.string(),
+  action_policy_version: z.string(),
+  action_policy_hash: z.string(),
+  policy_engine_version: z.string(),
+  operational_decision_id: z.string(),
+  operational_action: Action,
   operational: z.object({
-    decision_id: z.string(),
-    action: Action,
     policy_mapping: z.string(),
     applied: z.boolean(),
     workflow_status: WorkflowStatus,
     applied_at: IsoTime.optional(),
+    /** Business event that put the workflow in `workflow_status` (e.g. WorkflowHeld), possibly from an earlier provisional decision. */
     event_type: z.string().optional(),
+    event_at: IsoTime.optional(),
+    event_decision_id: z.string().optional(),
   }),
+  explanation_chain: z.array(ExplanationLink),
+  source_config_hash: z.string().optional(),
+  source_evidence_refs: z.array(SourceEvidenceRef),
   evidence: z.array(ReceiptEvidence),
   source_profiles: z.array(SourceProfile),
   uncertainty_items: z.array(UncertaintyItem),

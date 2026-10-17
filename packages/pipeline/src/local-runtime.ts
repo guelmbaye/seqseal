@@ -74,10 +74,35 @@ export class LocalRuntime {
     return r;
   }
 
-  async ingestPlaygroundCapture(capture: unknown): Promise<IngestResult> {
-    const r = await this.pipeline.ingestPlaygroundCapture(capture);
+  async ingestPlaygroundCapture(
+    capture: unknown,
+    replay?: { run_id: string; scenario_id: string; label?: string },
+    profile: "RING_PLAYGROUND" | "RING_DERIVED_REPLAY" = "RING_PLAYGROUND",
+  ): Promise<IngestResult> {
+    const r = await this.pipeline.ingestPlaygroundCapture(capture, replay, profile);
     await this.drain();
     return r;
+  }
+
+  /**
+   * Ring-derived replay (Master Brief §25, demo fallback level 2): Playground captures saved by
+   * `scripts/ring-spike.ts capture` are replayed through the normal pipeline, labelled
+   * RING_DERIVED_REPLAY, in their own lane so a replay never mixes with live traffic.
+   */
+  async runCaptures(captures: unknown[], o: { runId?: string; session?: string; delayMs?: number } = {}): Promise<ScenarioRunResult> {
+    const runId = o.runId ?? `rdr-${randomUUID().slice(0, 8)}`;
+    const replay = { run_id: runId, scenario_id: `ring-derived:${o.session ?? "session"}`, label: `Ring-derived replay — ${o.session ?? "captured session"}` };
+    const lane = this.pipeline.laneFor(replay);
+    const before = this.bus.published.length;
+    const ingest: ScenarioRunResult["ingest"] = [];
+    let seq = 0;
+    for (const c of captures) {
+      const r = await this.ingestPlaygroundCapture(c, replay, "RING_DERIVED_REPLAY");
+      ingest.push({ seq: ++seq, kind: "original", result: r });
+      if (o.delayMs) await sleep(o.delayMs);
+    }
+    const executionIds = [...new Set(this.bus.published.slice(before).flatMap((e) => (e.execution_id ? [e.execution_id] : [])))];
+    return { run_id: runId, scenario_id: replay.scenario_id, lane, execution_ids: executionIds, ingest, events: this.bus.published.slice(before) };
   }
 
   async finalize(executionId: string, reason = "OPERATOR_CLOSE") {

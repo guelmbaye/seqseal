@@ -2,6 +2,7 @@ export {
   validateActionPolicy,
   loadActionPolicy,
   loadActionPolicyFile,
+  actionFor,
   decide,
   PolicyInvalidError,
   ReleaseInvariantViolation,

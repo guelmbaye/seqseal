@@ -30,10 +30,13 @@ function markdown(r: BenchmarkReport): string {
     `| Duplicate operational events | ${m.duplicate_action_events} |`,
     `| Verdict accuracy | ${m.verdict_correct}/${m.verdict_checked} (${pct(m.verdict_correct, m.verdict_checked)}) |`,
     `| Action accuracy | ${m.action_correct}/${m.action_checked} (${pct(m.action_correct, m.action_checked)}) |`,
-    `| Receipt replay consistency (verdict + action + hashes) | ${m.replay_consistent}/${m.receipts} (${pct(m.replay_consistent, m.receipts)}) |`,
+    `| Replay consistency (same protocol + evidence + engine → same verdict) | ${m.verdict_replay_consistent}/${m.receipts} (${pct(m.verdict_replay_consistent, m.receipts)}) |`,
+    `| Action replay consistency (+ same policy → same action) | ${m.action_replay_consistent}/${m.receipts} (${pct(m.action_replay_consistent, m.receipts)}) |`,
+    `| Receipt replay, all checks incl. receipt hash | ${m.replay_consistent}/${m.receipts} (${pct(m.replay_consistent, m.receipts)}) |`,
     `| Provenance completeness (evidence → observation → raw source) | ${m.evidence_traceable}/${m.evidence_items} (${pct(m.evidence_traceable, m.evidence_items)}) |`,
     `| Engine determinism (100× A + 100× B, shuffled input order) | ${r.determinism.engine_consistent ? "consistent" : "INCONSISTENT"} |`,
-    `| Pipeline reliability (10× A→RELEASED, 10× B→HELD) | ${r.determinism.pipeline_expected}/${r.determinism.pipeline_runs} |`,
+    `| First implementation goal: 100× A → SEALED → RELEASE | ${r.determinism.a_sealed_released}/100 |`,
+    `| First implementation goal: 100× B → DEVIATED → HOLD | ${r.determinism.b_deviated_held}/100 |`,
     `| Scenarios passing all assertions | ${m.passed}/${m.scenarios} |`,
     ``,
     `## Scenarios`,
@@ -74,6 +77,8 @@ const ok =
   m.release_invariant_violations === 0 &&
   m.duplicate_action_events === 0 &&
   m.replay_consistent === m.receipts &&
+  m.verdict_replay_consistent === m.receipts &&
+  m.action_replay_consistent === m.receipts &&
   m.evidence_traceable === m.evidence_items &&
   report.determinism.engine_consistent &&
   report.determinism.pipeline_expected === report.determinism.pipeline_runs &&

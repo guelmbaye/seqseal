@@ -46,7 +46,7 @@ export interface ScenarioResult {
     system_errors: string[];
     evidence_count: number;
   };
-  replay: { receipts: number; consistent: number };
+  replay: { receipts: number; consistent: number; verdict_consistent: number; action_consistent: number };
   provenance: { evidence: number; traceable: number };
   release_invariant_violations: number;
   duplicate_action_events: number;
@@ -64,7 +64,7 @@ export interface BenchmarkReport {
   interpreter: string;
   scenarios: ScenarioResult[];
   policy_checks: Array<{ id: string; file: string; expect: string; observed: string; passed: boolean; errors: string[] }>;
-  determinism: { engine_runs: number; engine_consistent: boolean; pipeline_runs: number; pipeline_expected: number };
+  determinism: { engine_runs: number; engine_consistent: boolean; pipeline_runs: number; pipeline_expected: number; a_sealed_released: number; b_deviated_held: number };
   metrics: {
     scenarios: number;
     passed: number;
@@ -79,6 +79,8 @@ export interface BenchmarkReport {
     action_correct: number;
     receipts: number;
     replay_consistent: number;
+    verdict_replay_consistent: number;
+    action_replay_consistent: number;
     evidence_items: number;
     evidence_traceable: number;
     release_invariant_violations: number;
@@ -110,10 +112,20 @@ export async function runScenarioBenchmark(id: string, file: string, config: Pip
   // Post-run checks that exercise idempotency and human review.
   let extraEvents: DomainEvent[] = [];
   const before = rt.bus.published.length;
-  if (scenario.checks.includes("redeliver_decisions")) {
-    for (const e of run.events.filter((x) => x.name === "OperationalDecisionCreated")) await rt.pipeline.handle(e);
-    await rt.drain();
-  }
+  // At-least-once delivery: hand the same OperationalDecisionCreated / ActionApplied events to the
+  // Operational Gate and the receipt generator again (`redeliver_decisions[:N]`, `redeliver_action_applied[:N]`).
+  const times = (name: string) => {
+    const c = scenario.checks.find((x) => x === name || x.startsWith(`${name}:`));
+    return c ? Number(c.split(":")[1] ?? 1) : 0;
+  };
+  const redeliver = async (eventName: string, n: number) => {
+    for (let i = 0; i < n; i++) {
+      for (const e of run.events.filter((x) => x.name === eventName)) await rt.pipeline.handle(e);
+      await rt.drain();
+    }
+  };
+  await redeliver("OperationalDecisionCreated", times("redeliver_decisions"));
+  await redeliver("ActionApplied", times("redeliver_action_applied"));
   for (const c of scenario.checks.filter((x) => x === "review_confirm" || x === "review_reject")) {
     for (const execId of run.execution_ids) {
       for (const cand of await rt.store.listExecutionCandidates(execId)) {
@@ -125,7 +137,7 @@ export async function runScenarioBenchmark(id: string, file: string, config: Pip
   }
   extraEvents = rt.bus.published.slice(before);
   const allEvents = [...run.events, ...extraEvents];
-  const redeliveryBusiness = scenario.checks.includes("redeliver_decisions") ? extraEvents.filter((e) => BUSINESS_EVENTS.includes(e.name)).length : 0;
+  const redeliveryBusiness = times("redeliver_decisions") || times("redeliver_action_applied") ? extraEvents.filter((e) => BUSINESS_EVENTS.includes(e.name) || e.name === "ReceiptGenerated").length : 0;
 
   const execId = run.execution_ids[0];
   const execution = execId ? await rt.store.getExecution(execId) : undefined;
@@ -161,9 +173,16 @@ export async function runScenarioBenchmark(id: string, file: string, config: Pip
     if (e.source_refs.length && obs.every(Boolean) && raws.every(Boolean)) traceable++;
   }
 
-  // Replay every receipt.
+  // Replay every receipt: verdict replay (protocol + evidence + engine) and action replay (+ policy) separately.
   let consistent = 0;
-  for (const r of receipts) if ((await replayReceipt(rt.store, config, r)).consistent) consistent++;
+  let verdictConsistent = 0;
+  let actionConsistent = 0;
+  for (const r of receipts) {
+    const c = await replayReceipt(rt.store, config, r);
+    if (c.consistent) consistent++;
+    if (c.verdict_match && c.protocol_hash_match && c.evidence_set_hash_match) verdictConsistent++;
+    if (c.action_match && c.policy_hash_match) actionConsistent++;
+  }
 
   const observed: ScenarioResult["observed"] = {
     executions: run.execution_ids.length,
@@ -219,7 +238,7 @@ export async function runScenarioBenchmark(id: string, file: string, config: Pip
     supported: expected.supported,
     expected: expected as Record<string, unknown>,
     observed,
-    replay: { receipts: receipts.length, consistent },
+    replay: { receipts: receipts.length, consistent, verdict_consistent: verdictConsistent, action_consistent: actionConsistent },
     provenance: { evidence: evidence.length, traceable },
     release_invariant_violations: releaseViolations,
     duplicate_action_events: duplicateActions,
@@ -245,18 +264,27 @@ async function determinism(config: PipelineConfig) {
       if (r.verdict !== verdict || r.input_hash !== first.input_hash || JSON.stringify(r.rule_results) !== JSON.stringify(first.rule_results)) engineConsistent = false;
     }
   }
+  // Master Brief §22: 100 × A → SEALED → RELEASE and 100 × B → DEVIATED → HOLD through the pipeline.
   let pipelineExpected = 0;
-  for (let i = 0; i < 10; i++) {
+  let aOk = 0;
+  let bOk = 0;
+  for (let i = 0; i < 100; i++) {
     for (const [file, status] of [
       ["fixtures/scenarios/correct-sequence.json", "RELEASED"],
       ["fixtures/scenarios/wrong-sequence.json", "HELD"],
     ] as const) {
       const r = await rt.runScenario(JSON.parse(readFileSync(join(REPO_ROOT, file), "utf8")), { runId: `rel-${i}-${status}` });
+      const execution = (await rt.store.getExecution(r.execution_ids[0]!))!;
       const wf = (await rt.store.getWorkflow(r.execution_ids[0]!)).wf;
-      if (wf?.status === status && wf.final) pipelineExpected++;
+      const verdictOk = execution.latest_verdict === (status === "RELEASED" ? "SEALED" : "DEVIATED");
+      if (wf?.status === status && wf.final && verdictOk) {
+        pipelineExpected++;
+        if (status === "RELEASED") aOk++;
+        else bOk++;
+      }
     }
   }
-  return { engine_runs: 200, engine_consistent: engineConsistent, pipeline_runs: 20, pipeline_expected: pipelineExpected };
+  return { engine_runs: 200, engine_consistent: engineConsistent, pipeline_runs: 200, pipeline_expected: pipelineExpected, a_sealed_released: aOk, b_deviated_held: bOk };
 }
 
 function gitCommit(): string | null {
@@ -312,6 +340,8 @@ export async function runBenchmark(): Promise<BenchmarkReport> {
       action_correct: withAction.filter((s) => s.observed.action === s.expected.action).length,
       receipts: sum((s) => s.replay.receipts),
       replay_consistent: sum((s) => s.replay.consistent),
+      verdict_replay_consistent: sum((s) => s.replay.verdict_consistent),
+      action_replay_consistent: sum((s) => s.replay.action_consistent),
       evidence_items: sum((s) => s.provenance.evidence),
       evidence_traceable: sum((s) => s.provenance.traceable),
       release_invariant_violations: sum((s) => s.release_invariant_violations),

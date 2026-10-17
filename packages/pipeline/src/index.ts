@@ -4,6 +4,7 @@ export * from "./bus";
 export * from "./artifacts";
 export * from "./pipeline";
 export * from "./receipt";
+export * from "./explanation-chain";
 export * from "./replay-verify";
 export * from "./read-model";
 export * from "./config-loader";

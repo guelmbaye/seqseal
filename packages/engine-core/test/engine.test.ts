@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { evaluateExecution, hashEvidenceSet } from "../src";
+import { evaluate, evaluateExecution, hashEvidenceSet } from "../src";
 import { at, cand, ev, idp01, sequenceA, sequenceB } from "./support";
 
 const protocol = idp01();
@@ -163,5 +163,38 @@ describe("SEQSEAL verification profile details", () => {
   it("has no clock: occurred_at drives order even if accepted_at is reversed", () => {
     const a = sequenceA().map((e, i) => ({ ...e, accepted_at: at(100 - i) }));
     expect(run(a).verdict).toBe("SEALED");
+  });
+});
+
+describe("Evidence Graph and engine contract (Master Brief §7, §20)", () => {
+  it("evaluate(protocol, evidence) is the FINAL engine contract", () => {
+    expect(evaluate(protocol, sequenceA()).verdict).toBe("SEALED");
+    expect(evaluate(protocol, sequenceB()).primary_failures).toEqual(["ORDER-02"]);
+  });
+
+  it("observed edges follow physical time; protocol edges agree with rule results", () => {
+    const g = run(sequenceB()).evidence_graph!;
+    expect(g.nodes.filter((n) => n.status === "PRESENT").map((n) => n.state)).toEqual(["arrival", "staging", "storage", "departure", "clear"]);
+    expect(g.edges).toHaveLength(10); // every pair of the five present states
+    expect(g.edges.find((e) => e.from === "storage" && e.to === "staging")).toMatchObject({ relation: "OBSERVED_BEFORE", delta_ms: 180_000 });
+    for (const pe of g.protocol_edges) {
+      const r = rule(run(sequenceB()), pe.rule_id);
+      expect(pe.status).toBe(r.status);
+    }
+    expect(g.protocol_edges.find((e) => e.rule_id === "ORDER-02")).toMatchObject({ status: "FAIL", observed: "OBSERVED_AFTER" });
+  });
+
+  it("overlapping precision windows make an edge ORDER_UNDETERMINED, never a violation", () => {
+    const evidence = [ev("arrival", 0), ev("staging", 3, { precision: 30_000 }), ev("storage", 3, { seconds: 20 }), ev("departure", 9), ev("clear", 11)];
+    const r = run(evidence);
+    expect(r.verdict).toBe("UNCERTAIN");
+    expect(r.evidence_graph!.edges.find((e) => e.from === "staging" && e.to === "storage")?.relation).toBe("ORDER_UNDETERMINED");
+    expect(r.evidence_graph!.protocol_edges.find((e) => e.rule_id === "ORDER-02")).toMatchObject({ status: "NOT_EVALUABLE", observed: "ORDER_UNDETERMINED" });
+  });
+
+  it("absent and unresolved states are nodes without edges", () => {
+    const g = run(sequenceA().filter((e) => e.semantic_state !== "clear"), { unresolved: [cand("clear", 11)] }).evidence_graph!;
+    expect(g.nodes.find((n) => n.state === "clear")).toMatchObject({ status: "UNRESOLVED" });
+    expect(g.edges.some((e) => e.from === "clear" || e.to === "clear")).toBe(false);
   });
 });

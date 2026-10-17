@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RawSourceRecord } from "@seqseal/contracts";
 import {
+  latestHistoryEvent,
   buildReplayDeliveries,
   buildRingWebhookEnvelope,
   classifyEventType,
@@ -133,5 +134,28 @@ describe("fixture replay", () => {
     expect(d[0]!.body.data.id).toBe(d[1]!.body.data.id);
     expect(d[0]!.request_id).not.toBe(d[1]!.request_id);
     expect(parseRingWebhook(d[0]!.body).ok).toBe(true);
+  });
+});
+
+describe("Ring event history (tolerant, never invents an event)", () => {
+  it("reads JSON:API data[] with epoch-ms attributes.timestamp and picks the newest", () => {
+    const e = latestHistoryEvent({
+      data: [
+        { id: "evt-1", type: "on_demand", attributes: { timestamp: 1792332000000 } },
+        { id: "evt-2", type: "on_demand", attributes: { timestamp: 1792332180000 } },
+      ],
+    });
+    expect(e).toMatchObject({ event_id: "evt-2", event_type: "on_demand", occurred_at: "2026-10-18T14:03:00.000Z" });
+  });
+
+  it("reads events[] with ISO created_at and event_type", () => {
+    const e = latestHistoryEvent({ events: [{ event_id: 42, event_type: "motion", created_at: "2026-10-18T14:06:00Z" }] });
+    expect(e).toMatchObject({ event_id: "42", event_type: "motion", occurred_at: "2026-10-18T14:06:00.000Z" });
+  });
+
+  it("returns undefined for shapes it cannot identify", () => {
+    expect(latestHistoryEvent({ data: [{ foo: 1 }] })).toBeUndefined();
+    expect(latestHistoryEvent({ message: "no events" })).toBeUndefined();
+    expect(latestHistoryEvent(undefined)).toBeUndefined();
   });
 });

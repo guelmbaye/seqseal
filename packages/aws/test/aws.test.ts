@@ -6,7 +6,7 @@ import { MockEvidenceInterpreter } from "@seqseal/evidence-model";
 import type { DomainEvent } from "@seqseal/contracts";
 import { InMemoryBus, loadPipelineConfig, SeqSealPipeline } from "@seqseal/pipeline";
 import { buildReplayDeliveries, ReplayScenario } from "@seqseal/ring-adapter";
-import { domainEventFromSqsBody, DynamoDocDatabase, emitMetrics, EventBridgeSink, isRetryableAwsError } from "../src";
+import { bedrockEnabled, domainEventFromSqsBody, DynamoDocDatabase, emitMetrics, EventBridgeSink, isRetryableAwsError } from "../src";
 
 /**
  * Minimal DynamoDB emulator for the exact expression grammar DynamoDocDatabase emits.
@@ -154,5 +154,14 @@ describe("observability", () => {
   it("classifies retryable infrastructure errors", () => {
     expect(isRetryableAwsError({ name: "ProvisionedThroughputExceededException" })).toBe(true);
     expect(isRetryableAwsError({ name: "ValidationException", $metadata: { httpStatusCode: 400 } })).toBe(false);
+  });
+});
+
+describe("Bedrock switch (Master Brief §33)", () => {
+  it("BEDROCK_DISABLED=true always wins; Bedrock also needs an explicit flag and a model", () => {
+    expect(bedrockEnabled({ ENABLE_BEDROCK_EVIDENCE: "true", BEDROCK_EVIDENCE_MODEL_ID: "m", BEDROCK_DISABLED: "true" })).toBe(false);
+    expect(bedrockEnabled({ ENABLE_BEDROCK_EVIDENCE: "true", BEDROCK_EVIDENCE_MODEL_ID: "" })).toBe(false);
+    expect(bedrockEnabled({ ENABLE_BEDROCK_EVIDENCE: "false", BEDROCK_EVIDENCE_MODEL_ID: "m" })).toBe(false);
+    expect(bedrockEnabled({ ENABLE_BEDROCK_EVIDENCE: "true", BEDROCK_EVIDENCE_MODEL_ID: "m" })).toBe(true);
   });
 });

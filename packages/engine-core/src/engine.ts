@@ -17,6 +17,7 @@ import {
   type UncertaintyItem,
   type Verdict,
 } from "@seqseal/contracts";
+import { buildEvidenceGraph } from "./evidence-graph";
 import { explainRule, stateLabel } from "./explain";
 
 /**
@@ -272,7 +273,17 @@ export function evaluateExecution(input: EngineInput): EngineResult {
     complete,
     explanation,
     ...(counterfactual ? { counterfactual } : {}),
+    evidence_graph: buildEvidenceGraph(protocol, timeline, final.results),
   };
+}
+
+/**
+ * Master Brief §20 contract: evaluate(protocol, evidence) → WorkflowEvaluation core.
+ * Convenience over `evaluateExecution` for callers that only have accepted evidence;
+ * defaults to a FINAL evaluation with healthy coverage and no unresolved candidates.
+ */
+export function evaluate(protocol: EngineInput["protocol"], evidence: Evidence[], context: Partial<Omit<EngineInput, "protocol" | "evidence">> = {}): EngineResult {
+  return evaluateExecution({ protocol, evidence, mode: "FINAL", ...context });
 }
 
 /** Rule evaluation + SEQSEAL verdict precedence: DEVIATED > UNCERTAIN > INCOMPLETE > SEALED. */

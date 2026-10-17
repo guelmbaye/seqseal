@@ -11,6 +11,8 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { actionFor } from "@seqseal/action-policy-core";
+import { evaluate } from "@seqseal/engine-core";
 import { DisabledEvidenceInterpreter } from "@seqseal/evidence-model";
 import { LocalRuntime, replayReceipt } from "@seqseal/pipeline";
 
@@ -46,8 +48,11 @@ describe("Winning Moment", () => {
     expect(a.execution.source_profiles).toEqual(b.execution.source_profiles);
     expect(new Set(a.evidence.map((e) => e.semantic_state))).toEqual(new Set(b.evidence.map((e) => e.semantic_state)));
     expect(new Set(a.candidates.map((c) => c.mapping_id))).toEqual(new Set(b.candidates.map((c) => c.mapping_id)));
-    expect(a.receipts[0]!.protocol.hash).toBe(b.receipts[0]!.protocol.hash);
-    expect(a.receipts[0]!.action_policy.hash).toBe(b.receipts[0]!.action_policy.hash);
+    expect(a.receipts[0]!.protocol_hash).toBe(b.receipts[0]!.protocol_hash);
+    expect(a.receipts[0]!.action_policy_hash).toBe(b.receipts[0]!.action_policy_hash);
+    expect(a.execution.source_config_hash).toBeDefined();
+    expect(a.execution.source_config_hash).toBe(b.execution.source_config_hash); // same bindings + mappings
+    expect(a.receipts[0]!.source_config_hash).toBe(b.receipts[0]!.source_config_hash);
 
     // Change only: order.
     expect(a.evaluation.observed_sequence.map((s) => s.state)).toEqual(["arrival", "staging", "storage", "departure", "clear"]);
@@ -62,8 +67,32 @@ describe("Winning Moment", () => {
     expect(events.filter((e) => e.name === "WorkflowReleased" && e.execution_id === aId)).toHaveLength(1);
     expect(events.filter((e) => e.name === "WorkflowHeld" && e.execution_id === bId)).toHaveLength(1);
     expect(events.filter((e) => e.name === "WorkflowReleased" && e.execution_id === bId)).toHaveLength(0);
-    expect(a.receipts[0]!.operational).toMatchObject({ action: "RELEASE", applied: true, workflow_status: "RELEASED", event_type: "WorkflowReleased" });
-    expect(b.receipts[0]!.operational).toMatchObject({ action: "HOLD", applied: true, workflow_status: "HELD" });
+    expect(a.receipts[0]!.operational_action).toBe("RELEASE");
+    expect(a.receipts[0]!.operational).toMatchObject({ applied: true, workflow_status: "RELEASED", event_type: "WorkflowReleased" });
+    expect(b.receipts[0]!.operational_action).toBe("HOLD");
+    expect(b.receipts[0]!.operational).toMatchObject({ applied: true, workflow_status: "HELD", event_type: "WorkflowHeld" });
+
+    // Receipt explanation chain (Master Brief §35), reconstructed without any model.
+    expect(b.receipts[0]!.explanation_chain.map((l) => [l.connector, l.text])).toEqual([
+      ["", "HOLD"],
+      ["because", "Action policy IDP-ACTION@1.0.0 maps DEVIATED → HOLD"],
+      ["because", "ORDER-02 failed: STAGING must occur before STORAGE"],
+      ["because", "STORAGE 14:03 occurred before STAGING 14:06"],
+      ["based on", "Ring-shaped test fixture evidence"],
+    ]);
+    expect(a.receipts[0]!.explanation_chain.map((l) => l.text)).toEqual([
+      "RELEASE",
+      "Action policy IDP-ACTION@1.0.0 maps SEALED → RELEASE",
+      "All 11 protocol rules passed, including ORDER-02: STAGING must occur before STORAGE",
+      "STAGING 14:03 occurred before STORAGE 14:06",
+      "Ring-shaped test fixture evidence",
+    ]);
+
+    // Evidence Graph: the observed model agrees with the rule result.
+    const edgeB = b.evaluation.evidence_graph!.protocol_edges.find((e) => e.rule_id === "ORDER-02")!;
+    expect(edgeB).toMatchObject({ from: "staging", to: "storage", relation: "MUST_PRECEDE", status: "FAIL", observed: "OBSERVED_AFTER" });
+    const edgeA = a.evaluation.evidence_graph!.protocol_edges.find((e) => e.rule_id === "ORDER-02")!;
+    expect(edgeA).toMatchObject({ status: "PASS", observed: "OBSERVED_BEFORE" });
   });
 
   it("ORDER-02 evidence traces back to Ring-shaped source events (action → verdict → rule → evidence → observation → source)", async () => {
@@ -86,6 +115,21 @@ describe("Winning Moment", () => {
     const rt = new LocalRuntime({ interpreter: new DisabledEvidenceInterpreter() });
     const { a, b } = await runPair(rt);
     expect([a.wf.status, b.wf.status]).toEqual(["RELEASED", "HELD"]);
+  });
+
+  it("First implementation goal (Master Brief §22): 100 × A → SEALED → RELEASE, 100 × B → DEVIATED → HOLD", async () => {
+    const rt = new LocalRuntime();
+    const { a, b } = await runPair(rt);
+    const config = rt.pipeline.config;
+    let okA = 0;
+    let okB = 0;
+    for (let i = 0; i < 100; i++) {
+      const va = evaluate(config.protocol, [...a.evidence].reverse());
+      const vb = evaluate(config.protocol, [...b.evidence].reverse());
+      if (va.verdict === "SEALED" && actionFor(va.verdict, config.policy).action === "RELEASE") okA++;
+      if (vb.verdict === "DEVIATED" && vb.primary_failures[0] === "ORDER-02" && actionFor(vb.verdict, config.policy).action === "HOLD") okB++;
+    }
+    expect([okA, okB]).toEqual([100, 100]);
   });
 
   it("10 × A and 10 × B through the pipeline: 20/20 expected outcomes, every receipt replays", async () => {

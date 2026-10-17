@@ -4,6 +4,7 @@ import {
   POLICY_ENGINE_VERSION,
   RESOLVER_VERSION,
   type DomainEvent,
+  type ExplanationLink,
   type Evidence,
   type EvidenceCandidate,
   type EvidenceReview,
@@ -14,6 +15,7 @@ import {
   type SeqSealReceipt,
   type WorkflowEvaluation,
 } from "@seqseal/contracts";
+import { buildExplanationChain, signatureRule } from "./explanation-chain";
 import type { PipelineConfig } from "./pipeline";
 import type { SeqSealStore } from "./store/repository";
 
@@ -30,6 +32,8 @@ export interface ProtocolView {
   states: Array<{ id: string; label: string; required: boolean; terminal: boolean; zone?: string }>;
   zones: Array<{ id: string; name?: string }>;
   rules: Array<{ id: string; kind: string; operator: string; severity: string; text: string; implicit?: boolean }>;
+  /** The protocol's signature rule (first failure condition), e.g. ORDER-02 for IDP-01. */
+  signature_rule?: string;
 }
 
 export interface PolicyView {
@@ -75,6 +79,18 @@ export interface ExecutionDetail {
   observations: NormalizedObservation[];
   reviews: EvidenceReview[];
   events: DomainEvent[];
+  /** Why the workflow is in its current state; present once a decision exists for the latest evaluation. */
+  explanation_chain?: ExplanationLink[];
+}
+
+export interface HeroView {
+  /** "pair": latest released + latest held delivery. "latest": a delivery is in progress, show the two most recent. */
+  mode: "pair" | "latest" | "empty";
+  a?: ExecutionDetail;
+  b?: ExecutionDetail;
+  same_protocol: boolean;
+  same_policy: boolean;
+  same_mappings: boolean;
 }
 
 export interface SystemStatus {
@@ -113,6 +129,7 @@ export function protocolView(p: CompiledProtocol): ProtocolView {
       text: describeRule(p, r),
       ...(r.kind === "REQUIRED" && r.implicit ? { implicit: true } : {}),
     })),
+    ...(signatureRule(p) ? { signature_rule: signatureRule(p)! } : {}),
   };
 }
 
@@ -177,6 +194,11 @@ export class ReadModel {
     const obsIds = [...new Set([...evidence.flatMap((e) => e.observation_refs), ...candidates.flatMap((c) => c.observation_refs)])];
     const observations = (await Promise.all(obsIds.map((o) => this.store.getObservation(o)))).filter((o): o is NormalizedObservation => !!o);
     const latest = evaluations.at(-1);
+    const decision = latest ? decisions.find((d) => d.evaluation_id === latest.evaluation_id) : undefined;
+    const explanation_chain =
+      latest && decision
+        ? buildExplanationChain({ protocol: this.config.protocol, evaluation: latest, action: decision.action, policyRef: `${decision.action_policy_id}@${decision.action_policy_version}`, evidence, decisionId: decision.decision_id })
+        : undefined;
     return {
       execution,
       summary: await this.summarize(execution),
@@ -199,6 +221,7 @@ export class ReadModel {
       observations: observations.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)),
       reviews,
       events: events.sort((a, b) => a.occurred_at.localeCompare(b.occurred_at)),
+      ...(explanation_chain ? { explanation_chain } : {}),
     };
   }
 
@@ -219,16 +242,44 @@ export class ReadModel {
    * Winning Moment pairing: the most recent finalized SEALED/RELEASED and DEVIATED/HELD
    * executions evaluated under the same protocol and the same policy.
    */
-  async hero(): Promise<{ sealed?: ExecutionDetail; deviated?: ExecutionDetail; same_protocol: boolean; same_policy: boolean }> {
+  /**
+   * The checklist hero (Master Brief §38): Delivery A next to Delivery B.
+   *
+   *   pair    the latest released delivery next to the latest held one (the Winning Moment);
+   *   latest  a delivery is in progress (e.g. a live Ring Playground session): it fills in live.
+   *           If the previous delivery finished minutes ago from the same source, the two form a
+   *           session (A = previous, B = in progress); otherwise the new one is A and B waits.
+   *           Also used when no released/held pair exists yet.
+   */
+  async hero(): Promise<HeroView> {
     const all = await this.store.listExecutions(100);
+    const newest = all[0];
     const sealed = all.find((e) => e.status === "FINALIZED" && e.latest_verdict === "SEALED" && e.workflow_status === "RELEASED");
     const deviated = all.find((e) => e.latest_verdict === "DEVIATED" && e.workflow_status === "HELD" && (!sealed || e.protocol_hash === sealed.protocol_hash));
-    const [s, d] = await Promise.all([sealed ? this.executionDetail(sealed.execution_id) : undefined, deviated ? this.executionDetail(deviated.execution_id) : undefined]);
+
+    let mode: HeroView["mode"] = "empty";
+    let first: Execution | undefined;
+    let second: Execution | undefined;
+    if (newest && newest.status !== "ACTIVE" && sealed && deviated) {
+      mode = "pair";
+      [first, second] = [sealed, deviated];
+    } else if (newest) {
+      mode = "latest";
+      const prev = all[1];
+      const sameProfiles = (x: Execution, y: Execution) => x.source_profiles.join() === y.source_profiles.join();
+      const endedAt = prev ? Date.parse(prev.finalized_at ?? prev.updated_at) : NaN;
+      const session = !!prev && prev.status === "FINALIZED" && sameProfiles(prev, newest) && Date.parse(newest.created_at) - endedAt < 15 * 60_000;
+      [first, second] = newest.status === "ACTIVE" ? (session ? [prev, newest] : [newest, undefined]) : [prev, newest];
+    }
+    const [a, b] = await Promise.all([first ? this.executionDetail(first.execution_id) : undefined, second ? this.executionDetail(second.execution_id) : undefined]);
+    const both = !!first && !!second;
     return {
-      ...(s ? { sealed: s } : {}),
-      ...(d ? { deviated: d } : {}),
-      same_protocol: !!sealed && !!deviated && sealed.protocol_hash === deviated.protocol_hash,
-      same_policy: !!sealed && !!deviated && sealed.action_policy_ref === deviated.action_policy_ref,
+      mode,
+      ...(a ? { a } : {}),
+      ...(b ? { b } : {}),
+      same_protocol: both && first!.protocol_hash === second!.protocol_hash,
+      same_policy: both && first!.action_policy_ref === second!.action_policy_ref,
+      same_mappings: both && !!first!.source_config_hash && first!.source_config_hash === second!.source_config_hash,
     };
   }
 

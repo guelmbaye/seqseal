@@ -65,6 +65,56 @@ describe("Ring Developer Playground captures", () => {
   });
 });
 
+describe("Playground captures grounded in Ring history events, and Ring-derived replay", () => {
+  const T0 = Date.parse("2026-10-18T14:00:00Z");
+  const grounded = (n: number, src: string, zone: string, min: number) => ({
+    capture_id: `pg-evt-${n}`,
+    simulation_source: src,
+    session_zone: zone,
+    device_id: "pg-device-1",
+    captured_at: new Date(T0 + min * 60_000 + 25_000).toISOString(), // command run ~25 s after the simulation
+    api_evidence: { method: "GET", endpoint: "/v1/history/devices/pg-device-1/events", http_status: 200, request_id: `req-${n}` },
+    ring_event: { event_id: `evt-${n}`, event_type: "on_demand", occurred_at: new Date(T0 + min * 60_000).toISOString() },
+  });
+  const sessionA = [
+    grounded(1, "VEHICLE", "receiving-entry", 0),
+    grounded(2, "PACKAGE", "staging", 3),
+    grounded(3, "MOTION", "storage-transition", 6),
+    grounded(4, "VEHICLE", "receiving-exit", 9),
+    grounded(5, "MOTION", "receiving-exit", 11),
+  ];
+
+  it("uses the Ring event id as source reference and its timestamp as physical time; a re-capture of the same event is one observation", async () => {
+    const rt = new LocalRuntime();
+    for (const c of sessionA) await rt.ingestPlaygroundCapture(c);
+    await rt.ingestPlaygroundCapture({ ...sessionA[1]!, capture_id: "pg-evt-2-again" }); // same Ring event captured twice
+    const [exec] = await rt.store.listExecutions();
+    const evidence = await rt.store.listExecutionEvidence(exec!.execution_id);
+    expect(evidence).toHaveLength(5);
+    const staging = evidence.find((e) => e.semantic_state === "staging")!;
+    expect(staging.source_refs[0]!.source_event_ref).toBe("evt-2");
+    expect(staging.occurred_at).toBe("2026-10-18T14:03:00.000Z");
+    expect(exec!.workflow_status).toBe("RELEASED");
+  });
+
+  it("replays a saved session as RING_DERIVED_REPLAY in its own lane: A released, B (swapped) held on ORDER-02", async () => {
+    const rt = new LocalRuntime();
+    const sessionB = [sessionA[0]!, sessionA[2]!, sessionA[1]!, sessionA[3]!, sessionA[4]!].map((c, i) => ({ ...c, capture_id: `b-${i}`, ring_event: { ...c.ring_event, event_id: `b-evt-${i}` } }));
+    const a = await rt.runCaptures(sessionA, { session: "a" });
+    // B: same five simulations, storage captured before staging (times follow capture order)
+    const bTimes = [0, 3, 6, 9, 11];
+    const b = await rt.runCaptures(sessionB.map((c, i) => ({ ...c, ring_event: { ...c.ring_event, occurred_at: new Date(T0 + bTimes[i]! * 60_000).toISOString() } })), { session: "b" });
+    const ea = (await rt.store.getExecution(a.execution_ids[0]!))!;
+    const eb = (await rt.store.getExecution(b.execution_ids[0]!))!;
+    expect(ea.source_profiles).toEqual(["RING_DERIVED_REPLAY"]);
+    expect([ea.latest_verdict, ea.workflow_status]).toEqual(["SEALED", "RELEASED"]);
+    expect([eb.latest_verdict, eb.workflow_status]).toEqual(["DEVIATED", "HELD"]);
+    const [receipt] = await rt.store.listExecutionReceipts(eb.execution_id);
+    expect(receipt!.explanation_chain.at(-1)!.text).toBe("Ring-derived replay evidence");
+    expect(receipt!.source_evidence_refs.every((r) => r.source_profile === "RING_DERIVED_REPLAY")).toBe(true);
+  });
+});
+
 describe("finalization, amendments and receipts", () => {
   it("does not finalize before the grace window when grace > 0 (RELEASE waits)", async () => {
     const rt = new LocalRuntime({ options: { finalizationGraceMs: 60_000 } });
@@ -100,7 +150,7 @@ describe("finalization, amendments and receipts", () => {
     expect(after.latest_verdict).toBe("SEALED");
     expect(after.workflow_status).toBe("RELEASED");
     const receipts = await rt.store.listExecutionReceipts(id);
-    expect(receipts.map((x) => x.operational.action)).toEqual(["REVIEW", "RELEASE"]);
+    expect(receipts.map((x) => x.operational_action)).toEqual(["REVIEW", "RELEASE"]);
     expect(receipts[1]!.supersedes).toBe(receipts[0]!.receipt_id);
     const human = (await rt.store.listExecutionEvidence(id)).find((e) => e.interpretation_mode === "HUMAN_CONFIRMED")!;
     expect(human.review_id).toBeDefined();
@@ -114,9 +164,17 @@ describe("finalization, amendments and receipts", () => {
     await rt.runScenario(scenario("wrong-sequence"));
     const rm = new ReadModel(rt.store, rt.pipeline.config, { backend: "local", interpreter: "mock" });
     const hero = await rm.hero();
-    expect(hero.sealed?.summary.verdict).toBe("SEALED");
-    expect(hero.deviated?.summary.primary_rule).toBe("ORDER-02");
-    expect(hero.same_protocol && hero.same_policy).toBe(true);
+    expect(hero.mode).toBe("pair");
+    expect(hero.a?.summary.verdict).toBe("SEALED");
+    expect(hero.b?.summary.primary_rule).toBe("ORDER-02");
+    expect(hero.same_protocol && hero.same_policy && hero.same_mappings).toBe(true);
+    expect(hero.b?.explanation_chain?.map((l) => l.text)).toEqual([
+      "HOLD",
+      "Action policy IDP-ACTION@1.0.0 maps DEVIATED → HOLD",
+      "ORDER-02 failed: STAGING must occur before STORAGE",
+      "STORAGE 14:03 occurred before STAGING 14:06",
+      "Ring-shaped test fixture evidence",
+    ]);
     const status = await rm.status();
     expect(status.protocol.ref).toBe("IDP-01@1.0.0");
     expect(status.policy.mappings).toEqual({ SEALED: "RELEASE", DEVIATED: "HOLD", INCOMPLETE: "WAIT", UNCERTAIN: "REVIEW" });

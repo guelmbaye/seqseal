@@ -4,40 +4,145 @@
   "action_policy": "IDP-ACTION@1.0.0",
   "ground_truth": "Intentionally constructed scenarios with explicit protocol truth tables. No expectation was produced by a language model.",
   "scenarios": [
-    { "id": "B01", "file": "../fixtures/scenarios/correct-sequence.json" },
-    { "id": "B02", "file": "../fixtures/scenarios/wrong-sequence.json" },
-    { "id": "B03", "file": "scenarios/b03-temporal-violation.json" },
-    { "id": "B04", "file": "../fixtures/scenarios/missing-evidence.json" },
-    { "id": "B05", "file": "../fixtures/scenarios/ambiguous-evidence.json" },
-    { "id": "B06", "file": "scenarios/b06-duplicate-events.json" },
-    { "id": "B07", "file": "scenarios/b07-network-reordering.json" },
-    { "id": "B08", "file": "scenarios/b08-source-outage.json" },
-    { "id": "B09", "file": "scenarios/b09-equal-timestamps.json" },
-    { "id": "B10", "file": "scenarios/b10-unknown-event-noise.json" },
-    { "id": "B11", "file": "scenarios/b11-invalid-signature.json" },
-    { "id": "B11b", "file": "scenarios/b11b-valid-signature.json" },
-    { "id": "B12", "file": "scenarios/b12-bedrock-unavailable.json" },
-    { "id": "B13", "file": "scenarios/b13-ai-malformed-output.json" },
-    { "id": "B13b", "file": "scenarios/b13b-scene-text-injection.json" },
-    { "id": "B16", "file": "scenarios/b16-engine-failure.json" },
-    { "id": "B17", "file": "scenarios/b17-gate-failure.json" },
-    { "id": "B18", "file": "scenarios/b18-late-event-before-finalization.json" },
-    { "id": "B19", "file": "scenarios/b19-late-event-after-finalization.json" },
-    { "id": "B20", "file": "scenarios/b20-correlation-ambiguity.json" },
-    { "id": "B21", "file": "scenarios/b21-ai-supported-high.json" },
-    { "id": "B22", "file": "scenarios/b22-duplicate-wrong-order.json" },
-    { "id": "B23", "file": "scenarios/b23-review-confirm.json" },
-    { "id": "B24", "file": "scenarios/b24-review-reject.json" },
-    { "id": "B25", "file": "scenarios/b25-send-time-fallback.json" },
-    { "id": "B26", "file": "scenarios/b26-missing-staging-with-clear.json" },
-    { "id": "B27", "file": "scenarios/b27-deviation-without-clear.json" },
-    { "id": "B28", "file": "scenarios/b28-repeated-staging.json" },
-    { "id": "B29", "file": "scenarios/b29-departure-before-storage.json" },
-    { "id": "B30", "file": "scenarios/b30-clear-too-late.json" },
-    { "id": "B31", "file": "scenarios/b31-unbound-device.json" }
+    {
+      "id": "B01",
+      "file": "../fixtures/scenarios/correct-sequence.json"
+    },
+    {
+      "id": "B02",
+      "file": "../fixtures/scenarios/wrong-sequence.json"
+    },
+    {
+      "id": "B03",
+      "file": "scenarios/b03-temporal-violation.json"
+    },
+    {
+      "id": "B04",
+      "file": "../fixtures/scenarios/missing-evidence.json"
+    },
+    {
+      "id": "B05",
+      "file": "../fixtures/scenarios/ambiguous-evidence.json"
+    },
+    {
+      "id": "B06",
+      "file": "scenarios/b06-duplicate-events.json"
+    },
+    {
+      "id": "B07",
+      "file": "scenarios/b07-network-reordering.json"
+    },
+    {
+      "id": "B08",
+      "file": "scenarios/b08-source-outage.json"
+    },
+    {
+      "id": "B09",
+      "file": "scenarios/b09-equal-timestamps.json"
+    },
+    {
+      "id": "B10",
+      "file": "scenarios/b10-unknown-event-noise.json"
+    },
+    {
+      "id": "B11",
+      "file": "scenarios/b11-invalid-signature.json"
+    },
+    {
+      "id": "B11b",
+      "file": "scenarios/b11b-valid-signature.json"
+    },
+    {
+      "id": "B12",
+      "file": "scenarios/b12-bedrock-unavailable.json"
+    },
+    {
+      "id": "B13",
+      "file": "scenarios/b13-ai-malformed-output.json"
+    },
+    {
+      "id": "B13b",
+      "file": "scenarios/b13b-scene-text-injection.json"
+    },
+    {
+      "id": "B15",
+      "file": "scenarios/b15-duplicate-operational-decision.json"
+    },
+    {
+      "id": "B16",
+      "file": "scenarios/b16-engine-failure.json"
+    },
+    {
+      "id": "B17",
+      "file": "scenarios/b17-gate-failure.json"
+    },
+    {
+      "id": "B18",
+      "file": "scenarios/b18-late-event-before-finalization.json"
+    },
+    {
+      "id": "B19",
+      "file": "scenarios/b19-late-event-after-finalization.json"
+    },
+    {
+      "id": "B20",
+      "file": "scenarios/b20-correlation-ambiguity.json"
+    },
+    {
+      "id": "B21",
+      "file": "scenarios/b21-ai-supported-high.json"
+    },
+    {
+      "id": "B22",
+      "file": "scenarios/b22-duplicate-wrong-order.json"
+    },
+    {
+      "id": "B23",
+      "file": "scenarios/b23-review-confirm.json"
+    },
+    {
+      "id": "B24",
+      "file": "scenarios/b24-review-reject.json"
+    },
+    {
+      "id": "B25",
+      "file": "scenarios/b25-send-time-fallback.json"
+    },
+    {
+      "id": "B26",
+      "file": "scenarios/b26-missing-staging-with-clear.json"
+    },
+    {
+      "id": "B27",
+      "file": "scenarios/b27-deviation-without-clear.json"
+    },
+    {
+      "id": "B28",
+      "file": "scenarios/b28-repeated-staging.json"
+    },
+    {
+      "id": "B29",
+      "file": "scenarios/b29-departure-before-storage.json"
+    },
+    {
+      "id": "B30",
+      "file": "scenarios/b30-clear-too-late.json"
+    },
+    {
+      "id": "B31",
+      "file": "scenarios/b31-unbound-device.json"
+    }
   ],
   "policy_checks": [
-    { "id": "B14", "file": "../policies/examples/invalid-deviated-release.yaml", "expect": "POLICY_INVALID" },
-    { "id": "A-V2", "file": "../policies/examples/deviated-to-review.yaml", "expect": "VALID" }
+    {
+      "id": "B14",
+      "file": "../policies/examples/invalid-deviated-release.yaml",
+      "expect": "POLICY_INVALID"
+    },
+    {
+      "id": "A-V2",
+      "file": "../policies/examples/deviated-to-review.yaml",
+      "expect": "VALID"
+    }
   ]
 }

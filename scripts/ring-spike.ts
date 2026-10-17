@@ -6,17 +6,22 @@
  *         saved (tokens redacted) to fixtures/ring/spike-<timestamp>/ and a call log printed
  *         for docs/ring-playground-observations.md and docs/FRICTION_LOG.md.
  *
- *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging [--post <seqseal-url> --token <demo-token>]
- *       → performs a real status probe, emits a PlaygroundCapture JSON (api_evidence = the call made)
- *         and optionally POSTs it to /integrations/ring/playground/capture.
+ *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
+ *         [--session <name>] [--post <seqseal-url> --token <demo-token>] [--no-history]
+ *       → run right after clicking a simulation in the Playground. Reads the device's event
+ *         history and binds the capture to the newest Ring event not captured before (its id
+ *         and timestamp become the source event and the physical time); falls back to a status
+ *         probe if no history event appears within 60 s. Appends the capture to
+ *         fixtures/ring/captures/<session>.jsonl (for Ring-derived replay) and optionally POSTs it
+ *         to /integrations/ring/playground/capture.
  *
  * The base URL defaults to https://api.amazonvision.com (Ring API reference); set
  * RING_API_BASE_URL if the Playground uses another host. Nothing here invents semantics.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { RingApiClient, RingApiError, summarizeDevices, type RingApiCallLog } from "@seqseal/ring-adapter";
+import { latestHistoryEvent, RingApiClient, RingApiError, summarizeDevices, type RingApiCallLog } from "@seqseal/ring-adapter";
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -72,18 +77,59 @@ if (cmd === "discover") {
     console.error("capture requires --device --source PACKAGE|VEHICLE|MOTION --zone <logical-zone>");
     process.exit(2);
   }
-  await attempt("status probe", () => ring.getStatus(device));
+  // Every capture of a session is appended to fixtures/ring/captures/<session>.jsonl so the
+  // session can later be replayed as RING_DERIVED_REPLAY (demo fallback level 2).
+  const session = arg("session") ?? `playground-${new Date().toISOString().slice(0, 10)}`;
+  const capDir = join("fixtures", "ring", "captures");
+  mkdirSync(capDir, { recursive: true });
+  const sessionFile = join(capDir, `${session.replace(/[^A-Za-z0-9._-]/g, "-")}.jsonl`);
+  const previous = existsSync(sessionFile)
+    ? readFileSync(sessionFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { ring_event?: { event_id: string } })
+    : [];
+  const used = new Set(previous.flatMap((c) => (c.ring_event ? [c.ring_event.event_id] : [])));
+
+  // 1. Ground the capture in the Ring history event the simulation produced.
+  let ringEvent: ReturnType<typeof latestHistoryEvent>;
+  if (!process.argv.includes("--no-history")) {
+    for (let i = 0; i < 12; i++) {
+      const history = await attempt("event history", () => ring.getEventHistory(device));
+      ringEvent = latestHistoryEvent(history);
+      if (ringEvent && !used.has(ringEvent.event_id)) break;
+      if (i === 0) console.log(ringEvent ? "  newest history event was already captured; waiting for the new simulation…" : "  no identifiable history event yet; waiting…");
+      ringEvent = undefined;
+      await new Promise((r) => setTimeout(r, 5000));
+    }
+    if (ringEvent) console.log(`  Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
+    else console.log("  ! no new Ring history event found within 60 s; falling back to a status probe (note it in docs/FRICTION_LOG.md if this persists)");
+  }
+  // 2. Without a history event, prove at least that the Ring API answered for this device.
+  if (!ringEvent) await attempt("status probe", () => ring.getStatus(device));
   const call = calls.at(-1)!;
   const capture = {
-    capture_id: `pg-${randomUUID()}`,
+    capture_id: `pg-${ringEvent?.event_id ?? randomUUID()}`,
     simulation_source: source,
     session_zone: zone,
     device_id: device,
     captured_at: new Date().toISOString(),
-    api_evidence: { method: call.method, endpoint: call.path, http_status: call.status, ...(call.request_id ? { request_id: call.request_id } : {}) },
-    operator_note: arg("note") ?? `Playground ${source} session declared as zone ${zone}`,
+    api_evidence: {
+      method: call.method,
+      endpoint: call.path,
+      http_status: call.status,
+      ...(call.request_id ? { request_id: call.request_id } : {}),
+      ...(ringEvent ? { response_excerpt: redact(ringEvent.raw) } : {}),
+    },
+    ...(ringEvent
+      ? { ring_event: { event_id: ringEvent.event_id, ...(ringEvent.event_type ? { event_type: ringEvent.event_type } : {}), ...(ringEvent.occurred_at ? { occurred_at: ringEvent.occurred_at } : {}) } }
+      : {}),
+    operator_note: arg("note") ?? `Playground ${source} simulation declared as zone ${zone}`,
   };
+  if (call.status < 200 || call.status >= 300) {
+    console.error(`  ✕ the Ring API call failed (HTTP ${call.status}); nothing saved — SEQSEAL refuses captures without a successful Ring call.`);
+    process.exit(1);
+  }
+  appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
   console.log(JSON.stringify(capture, null, 2));
+  console.log(`  saved to ${sessionFile} (replay later with: pnpm replay --captures ${sessionFile})`);
   const post = arg("post");
   if (post) {
     const res = await fetch(`${post.replace(/\/$/, "")}/integrations/ring/playground/capture`, {

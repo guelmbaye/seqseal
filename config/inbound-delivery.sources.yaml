@@ -16,43 +16,44 @@ bindings:
   # ── Ring webhook / staging (real devices) and fixture replay ───────────────
   - binding_id: BIND-ENTRY
     description: Camera covering the receiving entry (vehicle arrivals)
-    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_profiles: [RING_WEBHOOK, RING_STAGING, RING_DERIVED_REPLAY, FIXTURE_REPLAY]
     source_device_ref: ring-device-entry
     logical_zone: receiving-entry
   - binding_id: BIND-STAGING
     description: Camera over the staging area
-    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_profiles: [RING_WEBHOOK, RING_STAGING, RING_DERIVED_REPLAY, FIXTURE_REPLAY]
     source_device_ref: ring-device-staging
     logical_zone: staging
   - binding_id: BIND-STORAGE
     description: Camera over the storage-transition aisle
-    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_profiles: [RING_WEBHOOK, RING_STAGING, RING_DERIVED_REPLAY, FIXTURE_REPLAY]
     source_device_ref: ring-device-storage
     logical_zone: storage-transition
   - binding_id: BIND-EXIT
     description: Doorbell camera at the receiving exit (vehicle departure; button = dock clear)
-    source_profiles: [RING_WEBHOOK, RING_STAGING, FIXTURE_REPLAY]
+    source_profiles: [RING_WEBHOOK, RING_STAGING, RING_DERIVED_REPLAY, FIXTURE_REPLAY]
     source_device_ref: ring-device-exit
     logical_zone: receiving-exit
 
   # ── Ring Developer Playground (simulated live-view sources) ────────────────
+  # RING_DERIVED_REPLAY: the same captures replayed later from a saved session file.
   # The Playground offers Package / Vehicle / Motion simulations. The operator
   # declares which logical zone a capture session represents; the binding is
   # matched on that declared zone and the simulation source.
   - binding_id: BIND-PG-ENTRY
-    source_profiles: [RING_PLAYGROUND]
+    source_profiles: [RING_PLAYGROUND, RING_DERIVED_REPLAY]
     session_zone: receiving-entry
     logical_zone: receiving-entry
   - binding_id: BIND-PG-STAGING
-    source_profiles: [RING_PLAYGROUND]
+    source_profiles: [RING_PLAYGROUND, RING_DERIVED_REPLAY]
     session_zone: staging
     logical_zone: staging
   - binding_id: BIND-PG-STORAGE
-    source_profiles: [RING_PLAYGROUND]
+    source_profiles: [RING_PLAYGROUND, RING_DERIVED_REPLAY]
     session_zone: storage-transition
     logical_zone: storage-transition
   - binding_id: BIND-PG-EXIT
-    source_profiles: [RING_PLAYGROUND]
+    source_profiles: [RING_PLAYGROUND, RING_DERIVED_REPLAY]
     session_zone: receiving-exit
     logical_zone: receiving-exit
 

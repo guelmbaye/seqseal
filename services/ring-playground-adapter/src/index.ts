@@ -8,7 +8,8 @@
  *      → this Lambda calls the Ring API itself (status probe or image snapshot download),
  *        records method/endpoint/HTTP status/request id as api_evidence, stores the
  *        snapshot under media/<observation> for optional AI interpretation, and ingests.
- *   2. A complete PlaygroundCapture produced by `scripts/ring-spike.ts capture`
+ *   2. A complete PlaygroundCapture produced by `scripts/ring-spike.ts capture` (live), or replayed
+ *      from a saved session with `x-seqseal-source-profile: RING_DERIVED_REPLAY`
  *      (e.g. after a WHEP live-view session from a laptop) → validated and ingested.
  *
  * It never fabricates `motion_detected.package_delivery`: the observation type is
@@ -42,7 +43,12 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
 
   const asCapture = PlaygroundCapture.safeParse(body);
   if (asCapture.success) {
-    const r = await rt.pipeline.ingestPlaygroundCapture(asCapture.data);
+    // A saved capture replayed later (scripts/replay.ts --captures) is labelled RING_DERIVED_REPLAY, never live.
+    const header = (name: string) => Object.entries(event.headers ?? {}).find(([k]) => k.toLowerCase() === name)?.[1];
+    const derived = header("x-seqseal-source-profile") === "RING_DERIVED_REPLAY";
+    const run = header("x-seqseal-replay-run");
+    const replay = derived && run ? { run_id: run, scenario_id: "ring-derived:remote", label: "Ring-derived replay" } : undefined;
+    const r = await rt.pipeline.ingestPlaygroundCapture(asCapture.data, replay, derived ? "RING_DERIVED_REPLAY" : "RING_PLAYGROUND");
     return json(r.status, r);
   }
 
