@@ -6,6 +6,7 @@ import { ActionBlock, VerdictMark } from "@/components/Marks";
 import { hhmm, hhmmss, upper, usePoll } from "@/lib/client";
 import { SOURCE_LABEL, type ProtocolView, type ReplayCheck, type SeqSealReceipt } from "@/lib/types";
 
+/** The SeqSeal Receipt: the trust proof after the magic (Master Brief §34–35). */
 export default function ReceiptPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { data: r, error } = usePoll<SeqSealReceipt>(`/api/receipts/${id}`, 0);
@@ -77,15 +78,24 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
 
       <div className="split">
         <div className="panel">
-          <ActionBlock action={r.operational.applied ? r.operational.action : null} pending="Action decided but not confirmed applied by the Operational Gate." />
+          <ActionBlock action={r.operational.applied ? r.operational_action : null} pending="Action decided but not confirmed applied by the Operational Gate." />
           <div className="chain-step" style={{ marginTop: 14 }}>
             <VerdictMark verdict={r.verdict} />
             <span className="small muted">
-              {r.operational.policy_mapping} under {r.action_policy.id} {r.action_policy.version}
-              {r.operational.event_type ? `, emitted ${r.operational.event_type}` : ""}
+              {r.operational.policy_mapping} under {r.action_policy_id} {r.action_policy_version}
+              {r.operational.event_type ? `; workflow ${r.operational.workflow_status} by ${r.operational.event_type}` : ""}
             </span>
           </div>
-          <p style={{ marginTop: 10 }}>{r.explanation}</p>
+
+          <h3 style={{ marginTop: 20 }}>Why this action</h3>
+          <ol className="chain-list" aria-label="Receipt explanation chain">
+            {r.explanation_chain.map((l, i) => (
+              <li key={i} className={`chain-${l.kind.toLowerCase()}`}>
+                {l.connector ? <span className="conn">{l.connector}</span> : <span />}
+                <span>{l.text}</span>
+              </li>
+            ))}
+          </ol>
 
           <h3 style={{ marginTop: 22 }}>Observed execution</h3>
           <ul className="timeline" style={{ marginTop: 6 }}>
@@ -121,28 +131,36 @@ export default function ReceiptPage({ params }: { params: Promise<{ id: string }
             <dl className="kv small" style={{ marginTop: 10 }}>
               <dt>Protocol</dt>
               <dd>
-                {r.protocol.id} {r.protocol.version}
+                {r.protocol_id} {r.protocol_version}
               </dd>
               <dt>Protocol hash</dt>
-              <dd className="mono">{r.protocol.hash}</dd>
+              <dd className="mono">{r.protocol_hash}</dd>
               <dt>Action policy</dt>
               <dd>
-                {r.action_policy.id} {r.action_policy.version}
+                {r.action_policy_id} {r.action_policy_version}
               </dd>
               <dt>Policy hash</dt>
-              <dd className="mono">{r.action_policy.hash}</dd>
+              <dd className="mono">{r.action_policy_hash}</dd>
+              <dt>Decision</dt>
+              <dd className="mono">{r.operational_decision_id}</dd>
               <dt>Engine</dt>
               <dd>{r.engine_version}</dd>
               <dt>Policy engine</dt>
               <dd>{r.policy_engine_version}</dd>
               <dt>Evidence set</dt>
               <dd className="mono">{r.evidence_set_hash}</dd>
+              {r.source_config_hash && (
+                <>
+                  <dt>Bindings and mappings</dt>
+                  <dd className="mono">{r.source_config_hash}</dd>
+                </>
+              )}
               <dt>Receipt hash</dt>
               <dd className="mono">{r.receipt_hash}</dd>
             </dl>
           </div>
           <div className="panel">
-            <h3>Evidence provenance</h3>
+            <h3>Source evidence</h3>
             <ul className="timeline" style={{ marginTop: 6 }}>
               {r.evidence.map((e) => (
                 <li key={e.evidence_id}>

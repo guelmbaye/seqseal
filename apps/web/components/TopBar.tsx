@@ -7,7 +7,7 @@ import { usePoll } from "@/lib/client";
 import { SOURCE_LABEL, type SystemStatus } from "@/lib/types";
 
 const NAV = [
-  { href: "/", label: "Winning Moment" },
+  { href: "/", label: "Checklist" },
   { href: "/monitor", label: "Monitor" },
   { href: "/executions", label: "Executions" },
   { href: "/protocol", label: "Protocol" },

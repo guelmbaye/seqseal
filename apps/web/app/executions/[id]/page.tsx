@@ -4,10 +4,12 @@ import Link from "next/link";
 import { use, useState } from "react";
 import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { laneData, workflowAction } from "@/components/ExecutionPanel";
-import { ActionBlock, StatusPill, VerdictMark } from "@/components/Marks";
+import { DeliveryChecklist } from "@/components/DeliveryChecklist";
+import { StatusPill, VerdictMark } from "@/components/Marks";
+import { checklistView } from "@/lib/checklist";
 import { SequenceLanes, type LaneStep } from "@/components/SequenceLanes";
 import { hhmmss, post, shortHash, upper, usePoll } from "@/lib/client";
-import { SOURCE_LABEL, STATUS_ACTION, type ExecutionDetail, type ProtocolView, type WorkflowStatus } from "@/lib/types";
+import { STATUS_ACTION, type ExecutionDetail, type ProtocolView, type WorkflowStatus } from "@/lib/types";
 
 export default function ExecutionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -15,12 +17,14 @@ export default function ExecutionPage({ params }: { params: Promise<{ id: string
   const { data: protocol } = usePoll<ProtocolView>("/api/protocol", 0);
   const [drawer, setDrawer] = useState<LaneStep>();
   const [note, setNote] = useState<string>();
+  const [whyOpen, setWhyOpen] = useState(true);
 
   if (error) return <p className="notice error">Execution {id} could not be loaded: {error}</p>;
   if (!d || !protocol) return <p className="muted">Loading {id}</p>;
 
   const ev = d.evaluation;
   const action = workflowAction(d);
+  const view = checklistView(d, protocol);
   const { observed, violated, missing } = laneData(d);
   const decision = d.decisions.at(-1);
   const unresolved = d.candidates.filter((c) => c.status === "UNCERTAIN" || c.status === "MEDIA_PENDING");
@@ -41,24 +45,16 @@ export default function ExecutionPage({ params }: { params: Promise<{ id: string
         <Link href="/executions">Executions</Link> / {id}
       </p>
 
-      {/* 1 — Decision header: action first, then verdict, then plain-language reason */}
+      {/* 1 — The consequence first: the receiving checklist and its Release button (Master Brief §37) */}
       <div className="split" style={{ marginTop: 10 }}>
-        <div className="panel">
-          <div className="panel-head">
-            <h1 style={{ fontSize: "1.9rem" }}>{id}</h1>
-            <span className="source-chip">
-              <span className="dot" />
-              Source <strong>{d.execution.source_profiles.map((p) => SOURCE_LABEL[p] ?? p).join(", ") || "—"}</strong>
-            </span>
-          </div>
-          <ActionBlock action={action} pending={ev?.explanation} />
-          <div className="chain-step" style={{ marginTop: 14 }}>
+        <div>
+          <DeliveryChecklist title={d.execution.replay?.label?.replace(/^Execution/, "Delivery") ?? `Delivery ${id}`} view={view} expanded={whyOpen} onToggle={() => setWhyOpen((o) => !o)} />
+          <div className="chain-step" style={{ marginTop: 12 }}>
             <VerdictMark verdict={ev?.verdict} />
             <span className="small muted">
               {ev?.mode === "FINAL" ? "final" : "provisional"} evaluation {ev?.evaluation_id}
             </span>
           </div>
-          <p style={{ marginTop: 8 }}>{ev?.explanation ?? "No evaluation yet."}</p>
           {d.execution.system_error && (
             <p className="notice error" style={{ marginTop: 12 }}>
               Verification unavailable ({d.execution.system_error.code}): {d.execution.system_error.message}. The workflow is not released.
@@ -171,7 +167,7 @@ export default function ExecutionPage({ params }: { params: Promise<{ id: string
               <li key={r.receipt_id}>
                 <time>v{r.receipt_version}</time>
                 <span>
-                  <Link href={`/receipts/${r.receipt_id}`}>{r.receipt_id}</Link> {r.verdict} to {r.operational.action}
+                  <Link href={`/receipts/${r.receipt_id}`}>{r.receipt_id}</Link> {r.verdict} to {r.operational_action}
                   {r.supersedes ? <span className="muted"> supersedes {r.supersedes}</span> : null}
                 </span>
               </li>
@@ -256,7 +252,47 @@ export default function ExecutionPage({ params }: { params: Promise<{ id: string
         </table>
       </div>
 
-      {/* 5 — Audit trail */}
+      {/* 5 — Evidence Graph: the observed model the engine reasoned over (Master Brief §7) */}
+      {ev?.evidence_graph && (
+        <div className="panel table-wrap" style={{ marginTop: 16 }}>
+          <div className="panel-head">
+            <h2>Evidence graph</h2>
+            <span className="small muted">What PWPS expected, laid over what the evidence shows</span>
+          </div>
+          <table className="table" style={{ marginTop: 10 }}>
+            <thead>
+              <tr>
+                <th>Rule</th>
+                <th>Expected</th>
+                <th>Observed</th>
+                <th>Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ev.evidence_graph.protocol_edges.map((e) => (
+                <tr key={e.rule_id} className={e.status === "FAIL" ? "row-fail" : undefined}>
+                  <td>
+                    <strong>{e.rule_id}</strong>
+                  </td>
+                  <td className="small">{protocol.rules.find((x) => x.id === e.rule_id)?.text ?? `${upper(protocol.labels, e.from)} before ${upper(protocol.labels, e.to)}`}</td>
+                  <td className="small">
+                    {e.observed === "OBSERVED_BEFORE"
+                      ? `${upper(protocol.labels, e.from)} before ${upper(protocol.labels, e.to)}`
+                      : e.observed === "OBSERVED_AFTER"
+                        ? `${upper(protocol.labels, e.to)} before ${upper(protocol.labels, e.from)}`
+                        : e.observed === "ORDER_UNDETERMINED"
+                          ? "order cannot be determined (timestamps too close)"
+                          : "not observed"}
+                  </td>
+                  <td className="small">{e.status.replace("_", " ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 6 — Audit trail */}
       <div className="panel" style={{ marginTop: 16 }}>
         <h2>Audit trail</h2>
         <ul className="timeline" style={{ marginTop: 10 }}>

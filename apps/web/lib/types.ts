@@ -10,8 +10,10 @@ export type {
   SeqSealReceipt,
   WorkflowEvaluation,
   ObservedStep,
+  ExplanationLink,
+  EvidenceGraph,
 } from "@seqseal/contracts";
-export type { ExecutionDetail, ExecutionSummary, ProtocolView, PolicyView, SystemStatus, ScenarioInfo, ReplayCheck } from "@seqseal/pipeline";
+export type { ExecutionDetail, ExecutionSummary, ProtocolView, PolicyView, SystemStatus, ScenarioInfo, ReplayCheck, HeroView, CaptureSessionInfo } from "@seqseal/pipeline";
 
 export type Verdict = "SEALED" | "DEVIATED" | "INCOMPLETE" | "UNCERTAIN";
 export type Action = "RELEASE" | "HOLD" | "WAIT" | "REVIEW";
@@ -46,6 +48,7 @@ export const SOURCE_LABEL: Record<string, string> = {
   RING_PLAYGROUND: "Ring Developer Playground",
   RING_WEBHOOK: "Ring webhook",
   RING_STAGING: "Ring staging",
+  RING_DERIVED_REPLAY: "Ring-derived replay",
   FIXTURE_REPLAY: "Test fixture (Ring-shaped replay)",
   CUSTOM_MEDIA: "Custom demo media (not Ring)",
 };

@@ -6,7 +6,7 @@ import { EvidenceDrawer } from "@/components/EvidenceDrawer";
 import { ExecutionPanel } from "@/components/ExecutionPanel";
 import type { LaneStep } from "@/components/SequenceLanes";
 import { hhmmss, post, usePoll } from "@/lib/client";
-import type { DomainEvent, ExecutionDetail, ExecutionSummary, ProtocolView, ScenarioInfo } from "@/lib/types";
+import type { CaptureSessionInfo, DomainEvent, ExecutionDetail, ExecutionSummary, ProtocolView, ScenarioInfo } from "@/lib/types";
 
 const RUN_LABEL: Record<string, string> = {
   "correct-sequence": "Run correct sequence",
@@ -27,6 +27,7 @@ const INTEGRITY_TEXT: Record<string, string> = {
 export default function Monitor() {
   const { data: protocol } = usePoll<ProtocolView>("/api/protocol", 0);
   const { data: scenarios } = usePoll<ScenarioInfo[]>("/api/scenarios", 0);
+  const { data: sessions } = usePoll<CaptureSessionInfo[]>("/api/capture-sessions", 0);
   const { data: list } = usePoll<ExecutionSummary[]>("/api/executions?limit=20", 800);
   const { data: events } = usePoll<DomainEvent[]>("/api/events?limit=30", 1200);
   const latest = list ? [...list].sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0] : undefined;
@@ -37,6 +38,11 @@ export default function Monitor() {
   async function run(id: string) {
     setMsg(undefined);
     const r = await post<{ error?: string }>("/api/demo/run", { scenario: id });
+    if (!r.ok) setMsg(r.body.error ?? `HTTP ${r.status}`);
+  }
+  async function runSession(session: string) {
+    setMsg(undefined);
+    const r = await post<{ error?: string }>("/api/demo/run-captures", { session });
     if (!r.ok) setMsg(r.body.error ?? `HTTP ${r.status}`);
   }
   async function close(id: string) {
@@ -58,6 +64,19 @@ export default function Monitor() {
           ))}
         </div>
       </div>
+      <p className="small muted" style={{ marginTop: -8, marginBottom: 14 }}>
+        These buttons replay test fixtures (Ring-shaped, not Ring data).
+        {sessions?.length ? " Saved Ring Playground sessions below replay real Ring captures, labelled Ring-derived replay." : ""}
+      </p>
+      {!!sessions?.length && (
+        <div className="btn-row" style={{ marginBottom: 16 }}>
+          {sessions.map((x) => (
+            <button key={x.id} className="btn secondary" onClick={() => runSession(x.id)} title={x.sources.join(", ")}>
+              Replay Ring-derived session {x.id} ({x.captures} captures)
+            </button>
+          ))}
+        </div>
+      )}
       {msg && <p className="notice error">{msg}</p>}
 
       <div className="split">

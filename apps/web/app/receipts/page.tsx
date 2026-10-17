@@ -43,7 +43,7 @@ export default function Receipts() {
                     <VerdictMark verdict={r.verdict} size="sm" />
                   </td>
                   <td>
-                    <strong>{r.operational.action}</strong>
+                    <strong>{r.operational_action}</strong>
                     {!r.operational.applied && <span style={{ color: "var(--danger)" }}> not applied</span>}
                   </td>
                   <td>{r.primary_failures[0] ?? "—"}</td>

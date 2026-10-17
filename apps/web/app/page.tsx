@@ -1,117 +1,153 @@
 "use client";
 
-import { useState } from "react";
-import { EvidenceDrawer } from "@/components/EvidenceDrawer";
-import { ExecutionPanel } from "@/components/ExecutionPanel";
-import type { LaneStep } from "@/components/SequenceLanes";
-import { post, upper, usePoll } from "@/lib/client";
-import type { ExecutionDetail, ExecutionSummary, ProtocolView } from "@/lib/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChecklistPlaceholder, DeliveryChecklist } from "@/components/DeliveryChecklist";
+import { checklistView, type ChecklistView } from "@/lib/checklist";
+import { post, usePoll } from "@/lib/client";
+import type { ExecutionDetail, ExecutionSummary, HeroView, ProtocolView } from "@/lib/types";
 
-type Hero = { sealed?: ExecutionDetail; deviated?: ExecutionDetail; same_protocol: boolean; same_policy: boolean };
 type Run = { run_id: string; scenario_id: string };
 
 function useRunDetail(runId: string | undefined, list: ExecutionSummary[] | undefined) {
   const id = list?.find((e) => e.replay?.run_id === runId)?.execution_id;
-  return usePoll<ExecutionDetail>(id ? `/api/executions/${id}` : null, 700).data;
+  return usePoll<ExecutionDetail>(id ? `/api/executions/${id}` : null, 600).data;
 }
 
-export default function WinningMoment() {
+/**
+ * The 12-second Obvious Magic walkthrough (Master Brief §5), played over the real results.
+ * Captions are built from the two deliveries' own times; nothing is staged.
+ */
+type Stage = "b-checked" | "b-locked" | "b-order" | "a-order" | "a-unlocked" | "split" | "end";
+function script(a: ChecklistView, b: ChecklistView): Array<{ at: number; stage: Stage; caption: string }> {
+  const flagged = b.rows.filter((r) => r.flagged);
+  const ordered = a.rows.filter((r) => r.signature);
+  const pair = (rows: typeof flagged) => rows.map((r) => `${r.label} ${r.at?.slice(11, 16) ?? ""}`).join(", then ");
+  return [
+    { at: 0, stage: "b-checked", caption: "Every box is checked." },
+    { at: 1400, stage: "b-locked", caption: "So why is Release still locked?" },
+    { at: 2800, stage: "b-order", caption: flagged.length === 2 ? `Wrong order: ${pair(flagged)}.` : "Wrong order." },
+    { at: 5000, stage: "a-order", caption: ordered.length === 2 ? `Right order: ${pair(ordered)}.` : "Right order." },
+    { at: 6600, stage: "a-unlocked", caption: "Release unlocked." },
+    { at: 8000, stage: "split", caption: "Right order → Release. Wrong order → Hold." },
+    { at: 10300, stage: "end", caption: "SEQSEAL. A checklist that can see." },
+  ];
+}
+
+export default function ChecklistHero() {
   const { data: protocol } = usePoll<ProtocolView>("/api/protocol", 0);
-  const { data: hero, refresh } = usePoll<Hero>("/api/hero", 2500);
+  const { data: hero, refresh } = usePoll<HeroView>("/api/hero", 2000);
   const [runs, setRuns] = useState<Run[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  const [drawer, setDrawer] = useState<{ detail: ExecutionDetail; step: LaneStep }>();
-  const { data: list } = usePoll<ExecutionSummary[]>(runs ? "/api/executions?limit=50" : null, 700);
+  const [open, setOpen] = useState<{ a: boolean; b: boolean }>({ a: false, b: false });
+  const [stage, setStage] = useState<{ stage: Stage; caption: string } | null>(null);
+  const timers = useRef<number[]>([]);
+  const { data: list } = usePoll<ExecutionSummary[]>(runs ? "/api/executions?limit=50" : null, 600);
   const liveA = useRunDetail(runs?.[0]?.run_id, list);
   const liveB = useRunDetail(runs?.[1]?.run_id, list);
 
-  const a = runs ? liveA : hero?.sealed;
-  const b = runs ? liveB : hero?.deviated;
+  const a = runs ? liveA : hero?.a;
+  const b = runs ? liveB : hero?.b;
+  const va = a && protocol ? checklistView(a, protocol) : undefined;
+  const vb = b && protocol ? checklistView(b, protocol) : undefined;
+  const canPlay = !!va && !!vb && va.release.tone === "seal" && vb.release.tone === "hold" && !va.active && !vb.active;
 
-  async function runWinningMoment() {
+  const stop = useCallback(() => {
+    timers.current.forEach((t) => window.clearTimeout(t));
+    timers.current = [];
+    setStage(null);
+  }, []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && stop();
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      timers.current.forEach((t) => window.clearTimeout(t));
+    };
+  }, [stop]);
+
+  function play() {
+    if (!va || !vb) return;
+    stop();
+    setOpen({ a: false, b: false });
+    for (const s of script(va, vb)) timers.current.push(window.setTimeout(() => setStage({ stage: s.stage, caption: s.caption }), s.at));
+    timers.current.push(window.setTimeout(() => setStage(null), 12_000));
+  }
+
+  async function replay() {
+    stop();
     setBusy(true);
     setError(undefined);
+    setOpen({ a: false, b: false });
     const r = await post<{ runs?: Run[]; error?: string }>("/api/demo/winning-moment", {});
     setBusy(false);
-    if (!r.ok || !r.body.runs) return setError(r.body.error ?? `Could not start the replay (HTTP ${r.status}).`);
+    if (!r.ok || !r.body.runs) return setError(r.body.error ?? `The replay could not start (HTTP ${r.status}).`);
     setRuns(r.body.runs);
   }
 
   async function reset() {
+    stop();
     await post("/api/demo/reset", {});
     setRuns(null);
+    setOpen({ a: false, b: false });
     refresh();
   }
 
+  const s = stage?.stage;
+  const focusA = s === "a-order" || s === "a-unlocked";
+  const focusB = s === "b-checked" || s === "b-locked" || s === "b-order";
+  const labels = ["Delivery A", "Delivery B"];
+
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1 style={{ maxWidth: "24ch" }}>These two deliveries contain the same events. Only one should be released.</h1>
-          <p>Each execution is evaluated against the same PWPS protocol and the same action policy. Only the physical order of the observations differs.</p>
-        </div>
-        <div className="btn-row">
-          <button className="btn" onClick={runWinningMoment} disabled={busy}>
-            {busy ? "Starting replay" : "Run the Winning Moment"}
+      <section className="hero-head">
+        <p className="hero-context">Inbound delivery</p>
+        <h1 className="display">Every box is checked. Order still matters.</h1>
+        <p className="lede">
+          Ring watches the receiving dock. SEQSEAL unlocks <strong>Release delivery</strong> only when the steps really happened in the required order:{" "}
+          {protocol ? protocol.expected_sequence.slice(0, 3).map((x) => (protocol.labels[x] ?? x).charAt(0) + (protocol.labels[x] ?? x).slice(1).toLowerCase()).join(", then ") : "Arrival, then Staging, then Storage"}.
+        </p>
+        <div className="hero-controls">
+          <button className="btn" onClick={replay} disabled={busy}>
+            {busy ? "Starting" : va || vb ? "Replay deliveries A and B" : "Run deliveries A and B"}
           </button>
-          <button className="btn secondary" onClick={reset}>
-            Reset demo
+          <button className="btn secondary" onClick={stage ? stop : play} disabled={!canPlay && !stage} title={canPlay ? "" : "Available once Delivery A is released and Delivery B is held"}>
+            {stage ? "Stop walkthrough" : "Play the 12-second walkthrough"}
+          </button>
+          <button className="btn quiet" onClick={reset}>
+            Reset
           </button>
         </div>
-      </div>
-
-      {protocol && (
-        <div className="hero-protocol">
-          <span className="small muted">Required receiving sequence, {protocol.ref}</span>
-          <div className="btn-row" aria-label="Required sequence">
-            {protocol.expected_sequence.map((s, i) => (
-              <span key={s} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                {i > 0 && <span className="muted" aria-hidden="true">›</span>}
-                <span className="token">{upper(protocol.labels, s)}</span>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      </section>
 
       {error && <p className="notice error">{error}</p>}
 
-      {protocol && (a || b) ? (
-        <div className="hero-grid">
-          {a ? (
-            <ExecutionPanel detail={a} protocol={protocol} title="Execution A" live={!!runs} onSelectStep={(step) => setDrawer({ detail: a, step })} />
-          ) : (
-            <Placeholder label="Execution A" />
-          )}
-          {b ? (
-            <ExecutionPanel detail={b} protocol={protocol} title="Execution B" live={!!runs} onSelectStep={(step) => setDrawer({ detail: b, step })} />
-          ) : (
-            <Placeholder label="Execution B" />
-          )}
-        </div>
-      ) : (
-        <div className="panel empty">
-          <h2>No executions yet</h2>
-          <p style={{ marginTop: 8 }}>
-            Run the Winning Moment to replay Execution A and Execution B through the full pipeline: Ring-shaped source events, evidence mapping, PWPS evaluation, the action policy and the Operational Gate.
+      <div className={`checklists${s ? ` stage-${s}` : ""}`} aria-live="polite">
+        {stage && (
+          <p className="walkthrough-caption" role="status">
+            {stage.caption}
           </p>
+        )}
+        <div className={`checklist-slot${focusB ? " dim" : ""}`}>
+          {va ? (
+            <DeliveryChecklist title={labels[0]!} view={va} expanded={open.a} onToggle={() => setOpen((o) => ({ ...o, a: !o.a }))} emphasize={focusA || s === "split"} />
+          ) : (
+            <ChecklistPlaceholder title={labels[0]!} note={runs ? "Waiting for the first Ring observation" : "No delivery yet"} />
+          )}
         </div>
-      )}
+        <div className={`checklist-slot${focusA ? " dim" : ""}`}>
+          {vb ? (
+            <DeliveryChecklist title={labels[1]!} view={vb} expanded={open.b} onToggle={() => setOpen((o) => ({ ...o, b: !o.b }))} emphasize={s === "b-order" || s === "split"} />
+          ) : (
+            <ChecklistPlaceholder title={labels[1]!} note={runs ? "Waiting for the first Ring observation" : va?.active ? "Waiting for the next delivery" : "No delivery yet"} />
+          )}
+        </div>
+      </div>
 
       <p className="hero-line">Same observations. Different sequence. Different operational action.</p>
-      <p className="hero-sub">Ring observes. PWPS defines. SEQSEAL verifies the sequence and gates what the receiving workflow may do next. AI can propose evidence; it cannot seal or release a workflow.</p>
-
-      {drawer && protocol && <EvidenceDrawer detail={drawer.detail} protocol={protocol} step={drawer.step} onClose={() => setDrawer(undefined)} />}
+      <p className="hero-sub">
+        Press a Release button to see why it is locked or unlocked: the exact protocol rule, what was observed, and the Ring evidence behind it. AI can propose evidence; it cannot release a delivery.
+      </p>
     </>
-  );
-}
-
-function Placeholder({ label }: { label: string }) {
-  return (
-    <section className="exec-panel" aria-busy="true">
-      <h2 style={{ fontSize: "1.25rem" }}>{label}</h2>
-      <p className="muted">Waiting for the first Ring observation.</p>
-    </section>
   );
 }
