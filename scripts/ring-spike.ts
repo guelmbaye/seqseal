@@ -38,6 +38,10 @@ if (!token) {
   process.exit(2);
 }
 
+/** Windows consoles often render ✓/✕ as "?"; use plain markers there. */
+const OK = process.platform === "win32" ? "[ok]" : "✓";
+const FAIL = process.platform === "win32" ? "[x]" : "✕";
+
 /** Read the expiry of a JWT access token locally (no verification, nothing printed but the time). */
 function tokenExpiry(t: string): Date | undefined {
   try {
@@ -62,7 +66,7 @@ function stopOnAuthError(err: unknown, label: string): void {
   if (err instanceof RingApiError && (err.status === 401 || err.status === 403)) {
     const timeRange = err.body.includes("TIME_RANGE_NOT_AUTHORIZED");
     console.error(
-      `\n  ✕ Ring rejected the request for ${label} (HTTP ${err.status}${timeRange ? " TIME_RANGE_NOT_AUTHORIZED" : ""}). Nothing was saved.\n` +
+      `\n  ${FAIL} Ring rejected the request for ${label} (HTTP ${err.status}${timeRange ? " TIME_RANGE_NOT_AUTHORIZED" : ""}). Nothing was saved.\n` +
         (timeRange
           ? "  The event happened before this token was issued. Generate a new token first, then run the simulation, then capture.\n"
           : `  The token was refused${expiry && expiry.getTime() < Date.now() ? ` (it expired at ${expiry.toISOString().slice(11, 16)} UTC)` : ""}; Playground tokens are short-lived.\n`) +
@@ -80,8 +84,8 @@ async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promis
     return (await fn()).data;
   } catch (err) {
     stopOnAuthError(err, label);
-    if (err instanceof RingApiError) console.log(`  ✕ ${label}: HTTP ${err.status} ${err.body.slice(0, 200)}`);
-    else console.log(`  ✕ ${label}: ${String(err)}`);
+    if (err instanceof RingApiError) console.log(`  ${FAIL} ${label}: HTTP ${err.status} ${err.body.slice(0, 200)}`);
+    else console.log(`  ${FAIL} ${label}: ${String(err)}`);
     return undefined;
   }
 }
@@ -139,13 +143,33 @@ if (cmd === "discover") {
   const demoToken = arg("token") ?? process.env.SEQSEAL_DEMO_TOKEN ?? "";
 
   // 0. If the capture goes to SEQSEAL, make sure SEQSEAL is up before touching Ring or saving anything.
+  //    In dev mode (`pnpm demo`) the first request to a route compiles it, which can take several
+  //    seconds: keep waiting while the server answers slowly, fail fast only if nothing listens.
   if (post) {
-    const up = await fetch(`${post}/api/status`, { signal: AbortSignal.timeout(4000) }).then((r) => r.ok).catch(() => false);
+    const local = post.includes("localhost") || post.includes("127.0.0.1");
+    const deadline = Date.now() + 60_000;
+    let refused = false;
+    let up = false;
+    console.log(`  checking SEQSEAL at ${post}…`);
+    for (let attemptNo = 0; Date.now() < deadline; attemptNo++) {
+      try {
+        const r = await fetch(`${post}/api/status`, { signal: AbortSignal.timeout(20_000) });
+        up = r.ok;
+        if (up) break;
+        console.error(`  ${FAIL} SEQSEAL answered HTTP ${r.status} on /api/status.`);
+        break;
+      } catch (err) {
+        const code = (err as { cause?: { code?: string; errors?: Array<{ code?: string }> } }).cause;
+        refused = code?.code === "ECONNREFUSED" || !!code?.errors?.some((e) => e.code === "ECONNREFUSED");
+        if (refused) break;
+        if (attemptNo === 0) console.log("  SEQSEAL is starting or compiling its routes (first request in dev mode); waiting…");
+      }
+    }
     if (!up) {
       console.error(
-        `  ✕ SEQSEAL is not reachable at ${post}. Nothing was called and nothing was saved.\n` +
-          (post.includes("localhost") || post.includes("127.0.0.1")
-            ? "    Start it in another terminal (from the repository folder): pnpm demo\n    Wait for \"Ready\", open http://localhost:3000 once, then run this capture again."
+        `  ${FAIL} SEQSEAL is not reachable at ${post}${refused ? " (nothing is listening on that port)" : " (no answer within 60 s)"}. Nothing was called and nothing was saved.\n` +
+          (local
+            ? "    Start it in another terminal from the repository folder with: pnpm demo\n    Wait for \"Ready\", open http://localhost:3000 once, then run this capture again."
             : "    Check the API URL (terraform output -raw api_endpoint) and your network."),
       );
       process.exit(1);
@@ -179,7 +203,7 @@ if (cmd === "discover") {
       await new Promise((r) => setTimeout(r, 5000));
     }
     if (ringEvent) {
-      console.log(`  ✓ Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
+      console.log(`  ${OK} Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
     } else {
       console.log(
         `  ! no new Ring history event within ${waitSeconds} s. Ring returned: ${JSON.stringify(redact(lastHistory) ?? null).slice(0, 300)}\n` +
@@ -210,7 +234,7 @@ if (cmd === "discover") {
     operator_note: arg("note") ?? `Playground ${source} simulation declared as zone ${zone}`,
   };
   if (call.status < 200 || call.status >= 300) {
-    console.error(`  ✕ the Ring API call failed (HTTP ${call.status}); nothing saved — SEQSEAL refuses captures without a successful Ring call.`);
+    console.error(`  ${FAIL} the Ring API call failed (HTTP ${call.status}); nothing saved — SEQSEAL refuses captures without a successful Ring call.`);
     process.exit(1);
   }
   console.log(JSON.stringify(capture, null, 2));
@@ -224,19 +248,19 @@ if (cmd === "discover") {
         method: "POST",
         headers: { "content-type": "application/json", "x-seqseal-demo-token": demoToken },
         body: JSON.stringify(capture),
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(45_000), // dev mode compiles the capture route on its first call
       });
       status = res.status;
       body = await res.text();
     } catch (err) {
-      console.error(`  ✕ could not reach SEQSEAL at ${post} (${err instanceof Error ? err.message : String(err)}). The capture was not saved; run the command again once SEQSEAL is up.`);
+      console.error(`  ${FAIL} could not reach SEQSEAL at ${post} (${err instanceof Error ? err.message : String(err)}). The capture was not saved; run the command again once SEQSEAL is up.`);
       process.exit(1);
     }
     if (status < 200 || status >= 300) {
-      console.error(`  ✕ SEQSEAL answered HTTP ${status}: ${body.slice(0, 300)}\n    The capture was not saved.`);
+      console.error(`  ${FAIL} SEQSEAL answered HTTP ${status}: ${body.slice(0, 300)}\n    The capture was not saved.`);
       process.exit(1);
     }
-    console.log(`  ✓ SEQSEAL accepted the capture (HTTP ${status}). Watch the checklist at ${post.includes("execute-api") ? "the web console" : post}.`);
+    console.log(`  ${OK} SEQSEAL accepted the capture (HTTP ${status}). Watch the checklist at ${post.includes("execute-api") ? "the web console" : post}.`);
   }
   appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
   console.log(`  saved to ${sessionFile} (${previous.length + 1} capture${previous.length ? "s" : ""} in this session; replay later with: pnpm replay --captures ${sessionFile})`);
