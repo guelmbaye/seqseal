@@ -89,7 +89,7 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Impact | Capture blocked until a new token is generated. With a short token lifetime, the ten captures of the Winning Moment (A then B) have to fit inside one token window, or be split |
 | Workaround | Generate a new token right before capturing. The spike script now reads the token's `exp` claim locally, prints its expiry, refuses an expired token, and stops at the first 401/403 instead of retrying |
 | Suggested improvement | Show the token expiry time next to Generate Token in the Playground, and return an explicit `token_expired` reason in the 401 body |
-| Status | Open: cause (expiry) to be confirmed with the expiry time the updated script prints |
+| Status | Resolved by workaround. The next token's `exp` claim gave about 30 minutes of validity (read at 09:05 UTC: valid until 09:34 UTC), consistent with the first token having expired between discovery and capture |
 
 ---
 

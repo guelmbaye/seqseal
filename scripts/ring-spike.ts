@@ -7,13 +7,13 @@
  *         for docs/ring-playground-observations.md and docs/FRICTION_LOG.md.
  *
  *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
- *         [--session <name>] [--post <seqseal-url> --token <demo-token>] [--no-history]
+ *         [--session <name>] [--post <seqseal-url> --token <demo-token>] [--wait <s>] [--no-history]
  *       → run right after clicking a simulation in the Playground. Reads the device's event
  *         history and binds the capture to the newest Ring event not captured before (its id
  *         and timestamp become the source event and the physical time); falls back to a status
- *         probe if no history event appears within 60 s. Appends the capture to
- *         fixtures/ring/captures/<session>.jsonl (for Ring-derived replay) and optionally POSTs it
- *         to /integrations/ring/playground/capture.
+ *         probe if no history event appears within --wait seconds (default 60). With --post, checks
+ *         that SEQSEAL is up first and saves the capture to fixtures/ring/captures/<session>.jsonl
+ *         (for Ring-derived replay) only once SEQSEAL accepted it.
  *
  * The base URL defaults to https://api.amazonvision.com (Ring API reference); set
  * RING_API_BASE_URL if the Playground uses another host. Nothing here invents semantics.
@@ -21,6 +21,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { compilePwpsFile } from "@pwps/core";
 import { latestHistoryEvent, RingApiClient, RingApiError, summarizeDevices, type RingApiCallLog } from "@seqseal/ring-adapter";
 
 const arg = (name: string) => {
@@ -119,13 +120,39 @@ if (cmd === "discover") {
   for (const c of calls) console.log(`  ${c.method.padEnd(6)} ${c.path.padEnd(60)} ${c.status}  ${c.duration_ms} ms`);
 } else if (cmd === "capture") {
   const device = arg("device");
-  const source = arg("source");
+  const source = arg("source")?.toUpperCase();
   const zone = arg("zone");
+  const zones = compilePwpsFile(join("protocols", "inbound-delivery.yaml")).zones.map((z) => z.id);
   if (!device || !source || !zone) {
-    console.error("capture requires --device --source PACKAGE|VEHICLE|MOTION --zone <logical-zone>");
+    console.error(`capture requires --device <id> --source PACKAGE|VEHICLE|MOTION --zone <${zones.join("|")}>`);
     process.exit(2);
   }
-  // Every capture of a session is appended to fixtures/ring/captures/<session>.jsonl so the
+  if (!["PACKAGE", "VEHICLE", "MOTION"].includes(source)) {
+    console.error(`--source must be PACKAGE, VEHICLE or MOTION (got ${source}).`);
+    process.exit(2);
+  }
+  if (!zones.includes(zone)) {
+    console.error(`--zone must be one of ${zones.join(", ")} (got ${zone}).`);
+    process.exit(2);
+  }
+  const post = arg("post")?.replace(/\/$/, "");
+  const demoToken = arg("token") ?? process.env.SEQSEAL_DEMO_TOKEN ?? "";
+
+  // 0. If the capture goes to SEQSEAL, make sure SEQSEAL is up before touching Ring or saving anything.
+  if (post) {
+    const up = await fetch(`${post}/api/status`, { signal: AbortSignal.timeout(4000) }).then((r) => r.ok).catch(() => false);
+    if (!up) {
+      console.error(
+        `  ✕ SEQSEAL is not reachable at ${post}. Nothing was called and nothing was saved.\n` +
+          (post.includes("localhost") || post.includes("127.0.0.1")
+            ? "    Start it in another terminal (from the repository folder): pnpm demo\n    Wait for \"Ready\", open http://localhost:3000 once, then run this capture again."
+            : "    Check the API URL (terraform output -raw api_endpoint) and your network."),
+      );
+      process.exit(1);
+    }
+  }
+
+  // Captures that SEQSEAL accepted are appended to fixtures/ring/captures/<session>.jsonl so the
   // session can later be replayed as RING_DERIVED_REPLAY (demo fallback level 2).
   const session = arg("session") ?? `playground-${new Date().toISOString().slice(0, 10)}`;
   const capDir = join("fixtures", "ring", "captures");
@@ -137,18 +164,29 @@ if (cmd === "discover") {
   const used = new Set(previous.flatMap((c) => (c.ring_event ? [c.ring_event.event_id] : [])));
 
   // 1. Ground the capture in the Ring history event the simulation produced.
+  const waitSeconds = Math.max(0, Number(arg("wait") ?? 60));
   let ringEvent: ReturnType<typeof latestHistoryEvent>;
+  let lastHistory: unknown;
   if (!process.argv.includes("--no-history")) {
-    for (let i = 0; i < 12; i++) {
-      const history = await attempt("event history", () => ring.getEventHistory(device));
-      ringEvent = latestHistoryEvent(history);
+    const deadline = Date.now() + waitSeconds * 1000;
+    for (let i = 0; ; i++) {
+      lastHistory = await attempt("event history", () => ring.getEventHistory(device));
+      ringEvent = latestHistoryEvent(lastHistory);
       if (ringEvent && !used.has(ringEvent.event_id)) break;
-      if (i === 0) console.log(ringEvent ? "  newest history event was already captured; waiting for the new simulation…" : "  no identifiable history event yet; waiting…");
       ringEvent = undefined;
+      if (Date.now() >= deadline) break;
+      if (i === 0) console.log(`  waiting up to ${waitSeconds} s for a new Ring history event…`);
       await new Promise((r) => setTimeout(r, 5000));
     }
-    if (ringEvent) console.log(`  Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
-    else console.log("  ! no new Ring history event found within 60 s; falling back to a status probe (note it in docs/FRICTION_LOG.md if this persists)");
+    if (ringEvent) {
+      console.log(`  ✓ Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
+    } else {
+      console.log(
+        `  ! no new Ring history event within ${waitSeconds} s. Ring returned: ${JSON.stringify(redact(lastHistory) ?? null).slice(0, 300)}\n` +
+          "    Check: was the simulation clicked AFTER this token was generated, and did it finish (20–40 s)?\n" +
+          "    Falling back to a status probe: it proves the Ring API answered for this device, not that this simulation happened.",
+      );
+    }
   }
   // 2. Without a history event, prove at least that the Ring API answered for this device.
   if (!ringEvent) await attempt("status probe", () => ring.getStatus(device));
@@ -175,19 +213,34 @@ if (cmd === "discover") {
     console.error(`  ✕ the Ring API call failed (HTTP ${call.status}); nothing saved — SEQSEAL refuses captures without a successful Ring call.`);
     process.exit(1);
   }
-  appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
   console.log(JSON.stringify(capture, null, 2));
-  console.log(`  saved to ${sessionFile} (replay later with: pnpm replay --captures ${sessionFile})`);
-  const post = arg("post");
+
+  // 3. Send to SEQSEAL; keep the capture in the session file only once SEQSEAL accepted it.
   if (post) {
-    const res = await fetch(`${post.replace(/\/$/, "")}/integrations/ring/playground/capture`, {
-      method: "POST",
-      headers: { "content-type": "application/json", "x-seqseal-demo-token": arg("token") ?? process.env.SEQSEAL_DEMO_TOKEN ?? "" },
-      body: JSON.stringify(capture),
-    });
-    console.log(res.status, await res.text());
+    let status = 0;
+    let body = "";
+    try {
+      const res = await fetch(`${post}/integrations/ring/playground/capture`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-seqseal-demo-token": demoToken },
+        body: JSON.stringify(capture),
+        signal: AbortSignal.timeout(15_000),
+      });
+      status = res.status;
+      body = await res.text();
+    } catch (err) {
+      console.error(`  ✕ could not reach SEQSEAL at ${post} (${err instanceof Error ? err.message : String(err)}). The capture was not saved; run the command again once SEQSEAL is up.`);
+      process.exit(1);
+    }
+    if (status < 200 || status >= 300) {
+      console.error(`  ✕ SEQSEAL answered HTTP ${status}: ${body.slice(0, 300)}\n    The capture was not saved.`);
+      process.exit(1);
+    }
+    console.log(`  ✓ SEQSEAL accepted the capture (HTTP ${status}). Watch the checklist at ${post.includes("execute-api") ? "the web console" : post}.`);
   }
+  appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
+  console.log(`  saved to ${sessionFile} (${previous.length + 1} capture${previous.length ? "s" : ""} in this session; replay later with: pnpm replay --captures ${sessionFile})`);
 } else {
-  console.error("usage: ring-spike.ts discover | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>]");
+  console.error("usage: ring-spike.ts discover | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>] [--session <name>] [--wait <seconds>] [--no-history]");
   process.exit(2);
 }
