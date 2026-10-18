@@ -207,3 +207,18 @@ No new strategy document was added.
 
   SEQSEAL already reacts safely to both (dedup by Ring event id, review on a second Arrival). Refusing them at capture time keeps a live demo on track.
 
+## BN-025 — Saying what Ring actually supplied for each Playground step
+
+**Observed (2026-10-18, 16:55–17:09 UTC).** Deliveries A and B ran live and ended Released and Held. Ring's history listed none of the ten simulations, so every capture fell back to a status probe. The evidence drawer showed only the Ring request id, which read as strong as a Ring event.
+
+**Decision.**
+
+- **What the observation records.** `ring_proof` is either "ring history event" or "ring api call only".
+- **What the drawer shows.** For every Playground step, the evidence drawer shows "Ring proof" and "Time from" (`apps/web/lib/provenance.ts`, tested). For a status-probe step it adds a plain notice: the record does not prove that the simulation ran, and its time is the capture time.
+- **How the capture reads the history.**
+  - It follows `links.next` (up to 5 pages) and cites the call that returned the event.
+  - `--require-event` refuses a capture without a new event instead of falling back.
+  - `ring-spike.ts history` lists everything Ring returns, newest first, to diagnose a missing event.
+
+**Why.** §55 asks that hero evidence be traceable to Ring. A status call proves that Ring answered, not that the step happened, and a judge opening the drawer must be able to tell the two apart. The fallback is kept, because it still beats inventing provenance, but it is never presented as a Ring event.
+

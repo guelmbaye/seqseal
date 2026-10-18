@@ -117,6 +117,45 @@ export function latestHistoryEvent(body: unknown): RingHistoryEvent | undefined 
   return best;
 }
 
+export interface RingHistorySummary {
+  /** Items on this page that have an id. */
+  count: number;
+  newest?: RingHistoryEvent;
+  oldest?: RingHistoryEvent;
+  /** Order of the items on this page, judged from their start times. */
+  order: "empty" | "single" | "newest-first" | "oldest-first" | "mixed" | "untimed";
+  /** `links.next`, when Ring says there is another page. */
+  next?: string;
+}
+
+/** What a history page contains, for diagnosing why a simulation's event is missing. */
+export function summarizeHistory(body: unknown): RingHistorySummary {
+  const obj = (body ?? {}) as Record<string, unknown>;
+  const list = Array.isArray(body) ? body : [obj.data, obj.events, obj.items, obj.results].find(Array.isArray);
+  const links = (obj.links ?? {}) as Record<string, unknown>;
+  const nextLink = typeof links.next === "string" && links.next ? links.next : undefined;
+  const events = (Array.isArray(list) ? list : []).flatMap((item) => {
+    const e = latestHistoryEvent({ data: [item] });
+    return e ? [e] : [];
+  });
+  const times = events.map((e) => e.occurred_at).filter((t): t is string => !!t);
+  let order: RingHistorySummary["order"] = "empty";
+  if (events.length === 1) order = "single";
+  else if (events.length > 1) {
+    if (times.length < events.length) order = "untimed";
+    else if (times.every((t, i) => i === 0 || t <= times[i - 1]!)) order = "newest-first";
+    else if (times.every((t, i) => i === 0 || t >= times[i - 1]!)) order = "oldest-first";
+    else order = "mixed";
+  }
+  const byTime = [...events].sort((a, b) => (a.occurred_at ?? "").localeCompare(b.occurred_at ?? ""));
+  return {
+    count: events.length,
+    ...(byTime.length ? { newest: latestHistoryEvent({ data: events.map((e) => e.raw) }), oldest: byTime[0] } : {}),
+    order,
+    ...(nextLink ? { next: nextLink } : {}),
+  };
+}
+
 export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOutcome {
   const r = PlaygroundCapture.safeParse(record.payload);
   if (!r.success) return { ok: false, error: r.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ") };
@@ -154,6 +193,7 @@ export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOut
       api_status: cap.api_evidence.http_status,
       zone_binding: "declared by operator at capture session",
       capture_id: cap.capture_id,
+      ring_proof: cap.ring_event ? "ring history event" : "ring api call only",
       time_source: cap.ring_event?.occurred_at ? "ring history event start" : "capture time",
       ...(cap.ring_event?.ended_at ? { ring_event_ended_at: cap.ring_event.ended_at } : {}),
       ...(cap.ring_event?.event_type ? { ring_event_type: cap.ring_event.event_type } : {}),

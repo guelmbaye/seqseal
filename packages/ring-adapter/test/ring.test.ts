@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RawSourceRecord } from "@seqseal/contracts";
 import {
   latestHistoryEvent,
+  summarizeHistory,
   buildReplayDeliveries,
   buildRingWebhookEnvelope,
   classifyEventType,
@@ -206,5 +207,20 @@ describe("Ring event history (tolerant, never invents an event)", () => {
     expect(latestHistoryEvent({ data: [{ foo: 1 }] })).toBeUndefined();
     expect(latestHistoryEvent({ message: "no events" })).toBeUndefined();
     expect(latestHistoryEvent(undefined)).toBeUndefined();
+  });
+});
+
+describe("Ring history summary (diagnosing a missing simulation event)", () => {
+  const ev = (id: string, start: number) => ({ type: "history-events", id, attributes: { event_type: "on_demand", start, end: start + 21_760 } });
+  it("reports count, order, newest and the next page link", () => {
+    const s = summarizeHistory({ data: [ev("a", 1_792_340_491_490), ev("b", 1_792_340_546_024)], links: { next: "/v1/history/devices/d/events?cursor=2" } });
+    expect(s).toMatchObject({ count: 2, order: "oldest-first", next: "/v1/history/devices/d/events?cursor=2" });
+    expect(s.newest?.event_id).toBe("b");
+    expect(s.oldest?.event_id).toBe("a");
+  });
+  it("handles newest-first, single and empty pages", () => {
+    expect(summarizeHistory({ data: [ev("b", 2), ev("a", 1)] }).order).toBe("newest-first");
+    expect(summarizeHistory({ data: [ev("a", 1)] }).order).toBe("single");
+    expect(summarizeHistory({ data: [] })).toEqual({ count: 0, order: "empty" });
   });
 });

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { hhmmss, upper } from "@/lib/client";
+import { ringProof } from "@/lib/provenance";
 import { SOURCE_LABEL, type ExecutionDetail, type ProtocolView } from "@/lib/types";
 import type { LaneStep } from "./SequenceLanes";
 
@@ -24,6 +25,7 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
   const rules = detail.evaluation?.rule_results.filter((r) => r.evidence_refs.includes(step.evidence_id ?? "")) ?? [];
   const failed = rules.find((r) => r.status === "FAIL");
   const action = detail.workflow?.status;
+  const proof = ringProof(obs?.attributes as Record<string, unknown> | undefined);
 
   return (
     <>
@@ -70,6 +72,14 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
           <dd className="mono">{src?.source_event_ref ?? "—"}</dd>
           <dt>Request</dt>
           <dd className="mono">{src?.request_ref ?? "—"}</dd>
+          {proof && (
+            <>
+              <dt>Ring proof</dt>
+              <dd>{proof.label}</dd>
+              <dt>Time from</dt>
+              <dd>{proof.time}</dd>
+            </>
+          )}
           <dt>Device</dt>
           <dd className="mono">{src?.device_ref ?? "—"}</dd>
           {src?.component_refs?.length ? (
@@ -97,6 +107,12 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
           <dt>Received</dt>
           <dd>{hhmmss(obs?.received_at)} UTC</dd>
         </dl>
+
+        {proof?.note && (
+          <p className="notice small" style={{ marginTop: 14 }}>
+            {proof.note}
+          </p>
+        )}
 
         <h3 style={{ marginTop: 22 }}>What SEQSEAL derived</h3>
         <dl className="kv" style={{ marginTop: 10 }}>

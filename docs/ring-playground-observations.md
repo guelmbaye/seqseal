@@ -2,7 +2,7 @@
 
 This sheet records what the live Ring API returns for the account used in the demo. It grounds the bindings and mappings in observed data instead of assumptions.
 
-**Status (2026-10-18): discovery done; first Ring history events captured at 16:21–16:23 UTC (VEHICLE); a clean A/B session is still to run.** Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
+**Status (2026-10-18): discovery done; Ring history events captured at 16:21–16:23 UTC (VEHICLE); Deliveries A and B ran live at 16:55–17:09 UTC, but Ring's history listed none of those ten simulations (open question, §3).** Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
 
 ```bash
 export RING_PLAYGROUND_TOKEN=…        # one-click Playground token, never written to disk
@@ -80,6 +80,21 @@ What this establishes:
 - **No classification.** `cv_detections` is empty: nothing in the event says a vehicle was shown. The simulated source can only come from the operator (`--source`), as designed (BUILD_NOTES BN-003; FRICTION_LOG FL-006).
 - **Other fields.** `is_third_party_reviewed: true`; `meta.riid: null`; `relationships.source` names the device.
 
+### 16:55–17:09 UTC: ten simulations, no new history event
+
+A new token was generated at about 16:53 (valid until 17:23). Deliveries A and B were then captured, one simulation per step (VEHICLE, PACKAGE, MOTION).
+
+- Each of the ten captures polled the history for 60 s. The newest event Ring listed stayed `…R4BHNYLH…` (start 16:22:26), from the earlier session.
+- So every capture fell back to a status probe (`GET /v1/devices/{id}/status`, HTTP 200), and its time is the capture time.
+- The history call itself kept answering HTTP 200. The old events were still listed with the new token, so history is not limited to the token's own lifetime.
+
+Not known yet: why these simulations left no event when the 16:21–16:23 ones did. Two explanations fit what was seen:
+
+- `on_demand` suggests the event is the live-view session itself, so a simulation that does not actually stream may leave no event;
+- or the Playground limits how many events a device records.
+
+`ring-spike.ts history --device <id>` lists every event Ring returns (following `links.next`, newest first) to check this right after a simulation. Until it is explained, this is not recorded as Ring friction.
+
 Still to observe: the PACKAGE and MOTION events (type, `cv_detections`).
 
 ## 4. Simulated sources (Package, Vehicle, Motion)
@@ -121,3 +136,12 @@ Each capture is saved to `fixtures/ring/captures/<session>.jsonl` and can be rep
 The second row repeated the Arrival step in the same session. SEQSEAL behaved as designed (one active delivery per lane, BUILD_NOTES BN-015): it could not tell which delivery later steps belong to, so it asked for review instead of guessing. That session is discarded and Delivery A is captured again. The capture command now refuses the same simulation in the same zone twice in one session (BN-024).
 
 Both captures were sent before the parser read `start`, so their physical time was the capture time (31.6 s and 26.6 s after the end of the simulation). Captures made from now on use `start`.
+
+Sessions `demo-a` and `demo-b` (16:55–17:09 UTC), captured again from scratch:
+
+| Delivery | Steps (capture time, UTC) | Ring calls | Result |
+|---|---|---|---|
+| A (`demo-a`) | Arrival 16:55:55, Staging 16:57:24, Storage 16:58:42, Departure 17:00:33, Clear 17:02:07 | five `GET …/status`, HTTP 200; request ids `d662ea4f-…`, `74fe6f8d-…`, `e17ac412-…`, `50a6252b-…`, `91303857-…` | SEALED → RELEASE, workflow RELEASED |
+| B (`demo-b`) | Arrival 17:03:38, Storage 17:05:27, Staging 17:06:54, Departure 17:08:06, Clear 17:09:15 | five `GET …/status`, HTTP 200; request ids `e4b99401-…`, `0bf53a82-…`, `a5ef4f12-…`, `9d2d0b8a-…`, `efe5fd07-…` | DEVIATED → HOLD (ORDER-02: Storage 17:05 before Staging 17:06), workflow HELD |
+
+The whole chain ran live: capture, Ring API call, SEQSEAL pipeline, verdict, policy, Operational Gate. Each step's evidence, however, is the operator's declaration plus a Ring status call, not a Ring event. The evidence drawer says "Ring API call only" for these steps.

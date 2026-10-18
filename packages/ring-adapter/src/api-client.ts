@@ -115,6 +115,13 @@ export class RingApiClient {
     const qs = new URLSearchParams(query).toString();
     return this.call<unknown>("GET", `/v1/history/devices/${encodeURIComponent(id)}/events${qs ? `?${qs}` : ""}`);
   }
+  /** Follows a `links.next` value from a history page. Only links on the configured API host are followed. */
+  getHistoryLink(link: string) {
+    const base = this.cfg.baseUrl.replace(/\/$/, "");
+    if (/^https?:\/\//.test(link) && !link.startsWith(`${base}/`)) throw new Error(`refusing to follow a link outside ${base}: ${link}`);
+    const path = link.startsWith(base) ? link.slice(base.length) : link.startsWith("/") ? link : `/${link}`;
+    return this.call<unknown>("GET", path);
+  }
   downloadSnapshot(id: string, components?: string[]) {
     return this.call<Uint8Array>("POST", `/v1/devices/${encodeURIComponent(id)}/media/image/download`, {
       body: JSON.stringify(components?.length ? { components } : {}),

@@ -6,13 +6,19 @@
  *         saved (tokens redacted) to fixtures/ring/spike-<timestamp>/ and a call log printed
  *         for docs/ring-playground-observations.md and docs/FRICTION_LOG.md.
  *
+ *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts history --device <id> [--query name=value]… [--pages <n>]
+ *       → diagnostic: every event the device's history lists right now (following links.next),
+ *         newest first, with start/end times and the session that captured it, if any.
+ *
  *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
- *         [--session <name>] [--again] [--post <seqseal-url> --token <demo-token>] [--wait <s>] [--max-age <s>] [--no-history]
+ *         [--session <name>] [--again] [--post <seqseal-url> --token <demo-token>] [--wait <s>] [--max-age <s>]
+ *         [--require-event] [--no-history]
  *       → run right after clicking a simulation in the Playground. Reads the device's event
  *         history and binds the capture to the newest Ring event, if no session captured it before
  *         and it ended less than --max-age seconds ago (default 180) (its id
  *         and `start` become the source event and the physical time); falls back to a status
- *         probe if no history event appears within --wait seconds (default 60). One session is
+ *         probe if no history event appears within --wait seconds (default 60), or stops without
+ *         sending anything with --require-event. One session is
  *         one delivery: the same simulation in the same zone twice is refused unless --again. With --post, checks
  *         that SEQSEAL is up first and saves the capture to fixtures/ring/captures/<session>.jsonl
  *         (for Ring-derived replay) only once SEQSEAL accepted it.
@@ -24,7 +30,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, write
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { compilePwpsFile } from "@pwps/core";
-import { latestHistoryEvent, RingApiClient, RingApiError, summarizeDevices, type RingApiCallLog } from "@seqseal/ring-adapter";
+import { latestHistoryEvent, RingApiClient, RingApiError, summarizeDevices, summarizeHistory, type RingApiCallLog } from "@seqseal/ring-adapter";
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -91,6 +97,30 @@ async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promis
     return undefined;
   }
 }
+
+/**
+ * Reads a device's event history, following `links.next` up to `maxPages` pages. Returns every
+ * item with the index (in `calls`) of the call that returned it, so a capture cites that call.
+ */
+async function readHistory(device: string, query: Record<string, string> = {}, maxPages = 5) {
+  const items: Array<{ item: unknown; callIndex: number }> = [];
+  const pages: Array<ReturnType<typeof summarizeHistory> & { callIndex: number; links?: unknown; meta?: unknown }> = [];
+  let body = await attempt("event history", () => ring.getEventHistory(device, query));
+  while (body !== undefined) {
+    const callIndex = calls.length - 1;
+    const obj = (body ?? {}) as Record<string, unknown>;
+    const list = Array.isArray(body) ? body : [obj.data, obj.events, obj.items, obj.results].find(Array.isArray);
+    for (const item of Array.isArray(list) ? list : []) items.push({ item, callIndex });
+    const s = summarizeHistory(body);
+    pages.push({ ...s, callIndex, links: obj.links, meta: obj.meta });
+    if (!s.next || pages.length >= maxPages) break;
+    const next = s.next;
+    body = await attempt(`event history page ${pages.length + 1}`, () => ring.getHistoryLink(next));
+  }
+  return { ok: pages.length > 0, items, pages, newest: latestHistoryEvent({ data: items.map((i) => i.item) }) };
+}
+
+const hhmmss = (iso?: string) => (iso ? iso.slice(11, 19) : "--:--:--");
 
 /** Field names and value types only: enough to document the API without keeping personal data. */
 function shapeOf(v: unknown, depth = 0): unknown {
@@ -220,15 +250,16 @@ if (cmd === "discover") {
   // A simulation's event shows up within about 30 s of its end (observed 2026-10-18). Anything much
   // older belongs to an earlier simulation and must not become this step's physical time.
   const maxAgeSeconds = Math.max(1, Number(arg("max-age") ?? 180));
+  const requireEvent = process.argv.includes("--require-event");
   let ringEvent: ReturnType<typeof latestHistoryEvent>;
   let skipped = "";
-  let lastHistory: unknown;
+  let lastHistory: Awaited<ReturnType<typeof readHistory>> | undefined;
   if (!process.argv.includes("--no-history")) {
     const waitStarted = Date.now();
     const deadline = waitStarted + waitSeconds * 1000;
     for (let i = 0; ; i++) {
-      lastHistory = await attempt("event history", () => ring.getEventHistory(device));
-      ringEvent = latestHistoryEvent(lastHistory);
+      lastHistory = await readHistory(device);
+      ringEvent = lastHistory.newest;
       if (ringEvent) {
         const endMs = Date.parse(ringEvent.ended_at ?? ringEvent.occurred_at ?? "");
         const age = Number.isNaN(endMs) ? undefined : Math.round((Date.now() - endMs) / 1000);
@@ -256,15 +287,24 @@ if (cmd === "discover") {
       }
     } else {
       console.log(
-        `  ! no new Ring history event within ${waitSeconds} s${skipped ? `: ${skipped}` : ""}. Ring returned: ${JSON.stringify(redact(lastHistory) ?? null).slice(0, 300)}\n` +
-          "    Check: was the simulation clicked AFTER this token was generated, and did it finish (20–40 s)?\n" +
-          "    Falling back to a status probe: it proves the Ring API answered for this device, not that this simulation happened.",
+        `  ! no new Ring history event within ${waitSeconds} s${skipped ? `: ${skipped}` : ""}.\n` +
+          `    Ring listed ${lastHistory?.items.length ?? 0} event(s) on ${lastHistory?.pages.length ?? 0} page(s)` +
+          `${lastHistory?.newest ? `; newest ${lastHistory.newest.event_id.slice(-12)} started ${hhmmss(lastHistory.newest.occurred_at)} UTC` : ""}.` +
+          ` Details: pnpm tsx scripts/ring-spike.ts history --device <id>\n` +
+          "    Check in the Playground that the simulation video actually played to its end (about 22 s).\n" +
+          (requireEvent
+            ? "    --require-event is set: nothing was sent and nothing was saved. Click the simulation again, then rerun this command."
+            : "    Falling back to a status probe: it proves the Ring API answered for this device, not that this simulation happened.\n" +
+              "    The evidence drawer will say \"Ring API call only\". Add --require-event to refuse such captures."),
       );
+      if (requireEvent) process.exit(1);
     }
   }
   // 2. Without a history event, prove at least that the Ring API answered for this device.
   if (!ringEvent) await attempt("status probe", () => ring.getStatus(device));
-  const call = calls.at(-1)!;
+  // Cite the Ring call that actually returned the event (history may span several pages).
+  const eventCall = ringEvent ? lastHistory?.items.find((i) => i.item === ringEvent!.raw)?.callIndex : undefined;
+  const call = (eventCall !== undefined ? calls[eventCall] : undefined) ?? calls.at(-1)!;
   const capture = {
     capture_id: `pg-${ringEvent?.event_id ?? randomUUID()}`,
     simulation_source: source,
@@ -322,7 +362,56 @@ if (cmd === "discover") {
   appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
   console.log(`  saved to ${sessionFile} (${previous.length + 1} capture${previous.length ? "s" : ""} in this session; replay later with: pnpm replay --captures ${sessionFile})`);
   console.log(`  steps in session "${session}": ${[...previous, capture].map(stepOf).join(", ")}`);
+} else if (cmd === "history") {
+  // Diagnostic: what the device's event history contains right now, page by page.
+  const device = arg("device");
+  if (!device) {
+    console.error("history requires --device <id> [--query name=value]… [--pages <n>]");
+    process.exit(2);
+  }
+  const query: Record<string, string> = {};
+  process.argv.forEach((a, i) => {
+    if (a !== "--query") return;
+    const [k, ...v] = (process.argv[i + 1] ?? "").split("=");
+    if (k) query[k] = v.join("=");
+  });
+  const h = await readHistory(device, query, Math.max(1, Number(arg("pages") ?? 5)));
+  if (!h.ok) process.exit(1);
+  const capDir = join("fixtures", "ring", "captures");
+  const capturedIn = new Map<string, string>();
+  if (existsSync(capDir)) {
+    for (const f of readdirSync(capDir).filter((n) => n.endsWith(".jsonl"))) {
+      for (const l of readFileSync(join(capDir, f), "utf8").split("\n").filter(Boolean)) {
+        try {
+          const id = (JSON.parse(l) as { ring_event?: { event_id?: string } }).ring_event?.event_id;
+          if (id) capturedIn.set(id, f.replace(/\.jsonl$/, ""));
+        } catch {
+          /* skip a damaged line */
+        }
+      }
+    }
+  }
+  console.log(`  now ${new Date().toISOString().slice(11, 19)} UTC${Object.keys(query).length ? `, query ${new URLSearchParams(query).toString()}` : ""}`);
+  h.pages.forEach((pg, i) => {
+    const c = calls[pg.callIndex];
+    console.log(
+      `  page ${i + 1}: ${pg.count} event(s), order ${pg.order}, next page: ${pg.next ? "yes" : "no"}` +
+        ` (HTTP ${c?.status}, request id ${c?.request_id ?? "—"}, ${c?.duration_ms} ms)`,
+    );
+    if (i === 0 && (pg.links || pg.meta)) console.log(`    links ${JSON.stringify(redact(pg.links ?? null))}  meta ${JSON.stringify(redact(pg.meta ?? null))}`);
+  });
+  const events = h.items
+    .map((i) => latestHistoryEvent({ data: [i.item] }))
+    .filter((e): e is NonNullable<typeof e> => !!e)
+    .sort((a, b) => (b.occurred_at ?? "").localeCompare(a.occurred_at ?? ""));
+  console.log(`  ${events.length} event(s) in total, newest first:`);
+  for (const e of events.slice(0, 10)) {
+    const lasted = e.occurred_at && e.ended_at ? `${((Date.parse(e.ended_at) - Date.parse(e.occurred_at)) / 1000).toFixed(1)} s` : "";
+    const ago = e.ended_at ?? e.occurred_at ? `${Math.round((Date.now() - Date.parse((e.ended_at ?? e.occurred_at)!)) / 60_000)} min ago` : "";
+    const owner = capturedIn.get(e.event_id);
+    console.log(`    …${e.event_id.slice(-12)}  ${e.event_type ?? "?"}  ${hhmmss(e.occurred_at)}–${hhmmss(e.ended_at)} UTC  ${lasted}  ${ago}${owner ? `  (captured in ${owner})` : ""}`);
+  }
 } else {
-  console.error("usage: ring-spike.ts discover | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>] [--session <name>] [--again] [--wait <seconds>] [--max-age <seconds>] [--no-history]");
+  console.error("usage: ring-spike.ts discover | history --device <id> [--query name=value] | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>] [--session <name>] [--again] [--wait <seconds>] [--max-age <seconds>] [--require-event] [--no-history]");
   process.exit(2);
 }

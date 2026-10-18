@@ -36,6 +36,8 @@ pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|M
 
 Use `--session demo-a` for Delivery A and `--session demo-b` for Delivery B. One session is one delivery. The command refuses to capture the same step twice in a session, because a second Arrival makes the delivery ambiguous and SEQSEAL sends it to review.
 
+For a recording, add `--require-event`. Each step must then print `[ok] Ring history event …`; otherwise nothing is sent, and you click the simulation again. Without it, a step Ring did not list falls back to a status probe, and the evidence drawer says "Ring API call only". If no event appears, run `pnpm tsx scripts/ring-spike.ts history --device <id>` right after a simulation to see what Ring lists.
+
 | Step | Simulation | `--zone` | Delivery A | Delivery B |
 |---|---|---|---|---|
 | Arrival | VEHICLE | receiving-entry | 1st | 1st |
