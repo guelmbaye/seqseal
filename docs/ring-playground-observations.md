@@ -2,7 +2,7 @@
 
 This sheet records what the live Ring API returns for the account used in the demo. It grounds the bindings and mappings in observed data instead of assumptions.
 
-**Status: not yet captured.** This build was produced without a Playground token, so every section below is empty on purpose. Do not fill it from documentation; fill it from `fixtures/ring/spike-<timestamp>/` after running:
+**Status: discovery done (2026-10-18), captures pending.** Fill the rest from `fixtures/ring/spike-<timestamp>/`, never from documentation. To run the discovery:
 
 ```bash
 export RING_PLAYGROUND_TOKEN=…        # one-click Playground token, never written to disk
@@ -13,16 +13,29 @@ pnpm tsx scripts/ring-spike.ts discover
 
 | Field | Value |
 |---|---|
-| Date (UTC) | |
-| API base URL used | (default `https://api.amazonvision.com`, or `RING_API_BASE_URL`) |
-| Token lifetime observed | |
-| Spike folder | `fixtures/ring/spike-…/` |
+| Date (UTC) | 2026-10-18 08:47 |
+| API base URL used | `https://api.amazonvision.com` (default) |
+| Token lifetime observed | Not yet confirmed. The token was refused with 401 about 11 min after a successful discovery (FRICTION_LOG FL-005); the script now prints the token's expiry |
+| Spike folder | `fixtures/ring/spike-2026-10-18T08-47-31-685Z/` |
+
+Discovery calls, all HTTP 200:
+
+| Call | Duration |
+|---|---|
+| `GET /v1/users/me` | 1288 ms |
+| `GET /v1/devices?include=status,capabilities,configurations` | 798 ms |
+| `GET /v1/devices/{id}/status` | 590 ms |
+| `GET /v1/devices/{id}/capabilities` | 931 ms |
+| `GET /v1/devices/{id}/configurations` | 915 ms |
+| `GET /v1/history/devices/{id}/events` | 871 ms |
 
 ## 2. Devices (`GET /v1/devices?include=status,capabilities,location,configurations`)
 
+One device was returned:
+
 | Device id | Kind / model | Components | Status | Capabilities relevant to SEQSEAL |
 |---|---|---|---|---|
-| | | | | |
+| `ava1.ring.device.DJXHOX5NRJIDNGWFTA74YI45P4WJGLK6GPLAWU7HA7YHPDVQ4LRHUL2J4ZZK6FUOLZPKQSHJKXRNK2VYXYIPD4N5ZJIKO3RA` | to fill from `devices.json` | | | |
 
 ## 3. Event history (`GET /v1/history/devices/{id}/events`)
 

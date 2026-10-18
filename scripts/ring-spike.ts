@@ -27,10 +27,48 @@ const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return i >= 0 ? process.argv[i + 1] : undefined;
 };
-const token = process.env.RING_PLAYGROUND_TOKEN ?? "";
+const token = (process.env.RING_PLAYGROUND_TOKEN ?? "").trim();
+const SET_TOKEN_HELP =
+  "Click Generate Token in the Ring Developer Playground, then set it in this terminal:\n" +
+  '    PowerShell:  $env:RING_PLAYGROUND_TOKEN = "<token>"\n' +
+  '    bash/zsh:    export RING_PLAYGROUND_TOKEN="<token>"';
 if (!token) {
-  console.error("Set RING_PLAYGROUND_TOKEN (Developer Playground one-click token). It is never written to disk.");
+  console.error(`RING_PLAYGROUND_TOKEN is not set (it is never written to disk).\n${SET_TOKEN_HELP}`);
   process.exit(2);
+}
+
+/** Read the expiry of a JWT access token locally (no verification, nothing printed but the time). */
+function tokenExpiry(t: string): Date | undefined {
+  try {
+    const payload = JSON.parse(Buffer.from(t.split(".")[1] ?? "", "base64url").toString("utf8")) as { exp?: number };
+    return typeof payload.exp === "number" ? new Date(payload.exp * 1000) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+const expiry = tokenExpiry(token);
+if (expiry) {
+  const minutesLeft = Math.floor((expiry.getTime() - Date.now()) / 60_000);
+  if (minutesLeft < 0) {
+    console.error(`The Playground token expired at ${expiry.toISOString().slice(11, 16)} UTC (${-minutesLeft} min ago).\n${SET_TOKEN_HELP}`);
+    process.exit(2);
+  }
+  console.log(`Token valid until ${expiry.toISOString().slice(11, 16)} UTC (${minutesLeft} min left).`);
+}
+
+/** 401/403 never fix themselves by waiting: stop at once and say why. */
+function stopOnAuthError(err: unknown, label: string): void {
+  if (err instanceof RingApiError && (err.status === 401 || err.status === 403)) {
+    const timeRange = err.body.includes("TIME_RANGE_NOT_AUTHORIZED");
+    console.error(
+      `\n  ✕ Ring rejected the request for ${label} (HTTP ${err.status}${timeRange ? " TIME_RANGE_NOT_AUTHORIZED" : ""}). Nothing was saved.\n` +
+        (timeRange
+          ? "  The event happened before this token was issued. Generate a new token first, then run the simulation, then capture.\n"
+          : `  The token was refused${expiry && expiry.getTime() < Date.now() ? ` (it expired at ${expiry.toISOString().slice(11, 16)} UTC)` : ""}; Playground tokens are short-lived.\n`) +
+        `  ${SET_TOKEN_HELP.split("\n").join("\n  ")}`,
+    );
+    process.exit(1);
+  }
 }
 const calls: RingApiCallLog[] = [];
 const ring = new RingApiClient({ baseUrl: process.env.RING_API_BASE_URL ?? "https://api.amazonvision.com", accessToken: token, onRequest: (l) => calls.push(l) });
@@ -40,10 +78,19 @@ async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promis
   try {
     return (await fn()).data;
   } catch (err) {
+    stopOnAuthError(err, label);
     if (err instanceof RingApiError) console.log(`  ✕ ${label}: HTTP ${err.status} ${err.body.slice(0, 200)}`);
     else console.log(`  ✕ ${label}: ${String(err)}`);
     return undefined;
   }
+}
+
+/** Field names and value types only: enough to document the API without keeping personal data. */
+function shapeOf(v: unknown, depth = 0): unknown {
+  if (depth > 6) return "…";
+  if (Array.isArray(v)) return v.length ? [shapeOf(v[0], depth + 1)] : [];
+  if (v && typeof v === "object") return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, shapeOf(x, depth + 1)]));
+  return v === null ? "null" : typeof v;
 }
 
 const cmd = process.argv[2];
@@ -51,7 +98,8 @@ if (cmd === "discover") {
   const dir = join("fixtures", "ring", `spike-${new Date().toISOString().replace(/[:.]/g, "-")}`);
   mkdirSync(dir, { recursive: true });
   const me = await attempt("users/me", () => ring.getMe());
-  writeFileSync(join(dir, "users-me.json"), JSON.stringify(redact(me), null, 2));
+  // The account record is personal data: keep only its shape.
+  writeFileSync(join(dir, "users-me.shape.json"), JSON.stringify(shapeOf(me), null, 2));
   const devices = await attempt("devices", () => ring.listDevices());
   writeFileSync(join(dir, "devices.json"), JSON.stringify(redact(devices), null, 2));
   for (const d of summarizeDevices(devices)) {

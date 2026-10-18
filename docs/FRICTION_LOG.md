@@ -4,9 +4,9 @@ Only friction actually encountered while building SEQSEAL is recorded here. Noth
 
 **Scope of this build.** The code was written and verified in a sandboxed environment that had no Ring Developer Playground token, no AWS credentials, and outbound network limited to package registries. Consequently:
 
-- no live Ring API call and no AWS deployment were performed here;
-- there are no Ring or AWS entries yet;
-- entries from the live Ring spike and the first `terraform apply` must be added when those steps run (template at the end).
+- no live Ring API call and no AWS deployment were performed in the build sandbox itself;
+- Ring entries come from the live Ring Source Spike run on the developer's machine (from FL-005);
+- entries from the first `terraform apply` must be added when that step runs (template at the end).
 
 Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Severity (Critical / Major / Minor / Cosmetic) · Impact · Workaround · Suggested improvement · Status.
 
@@ -74,6 +74,22 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Impact | Noise on every fresh clone |
 | Workaround | Committed launcher `packages/pwps/bin/pwps.mjs` that loads the built CLI and explains how to build it; inside the monorepo `pnpm pwps` runs the TypeScript source through tsx |
 | Status | Resolved |
+
+## FL-005 — Playground token refused about 11 minutes after a successful discovery
+
+| | |
+|---|---|
+| Date | 2026-10-18 |
+| Tool / API | Ring Developer Playground token · Ring API (`api.amazonvision.com`) |
+| Task | Ring Source Spike: discovery, then the first Playground capture |
+| Steps | 08:47 UTC: `ring-spike.ts discover` makes 6 calls, all HTTP 200 (`/v1/users/me`, `/v1/devices`, the device's `status`, `capabilities`, `configurations` and `history/…/events`). About 11 minutes later, in the same terminal and with the same token, `ring-spike.ts capture` gets HTTP 401 on `history/…/events` and on `status` |
+| Expected | Same token valid for the whole capture session |
+| Actual | HTTP 401 on every call, including the `status` endpoint that had answered 200 minutes earlier. The response body gave no reason |
+| Severity | Major |
+| Impact | Capture blocked until a new token is generated. With a short token lifetime, the ten captures of the Winning Moment (A then B) have to fit inside one token window, or be split |
+| Workaround | Generate a new token right before capturing. The spike script now reads the token's `exp` claim locally, prints its expiry, refuses an expired token, and stops at the first 401/403 instead of retrying |
+| Suggested improvement | Show the token expiry time next to Generate Token in the Playground, and return an explicit `token_expired` reason in the 401 body |
+| Status | Open: cause (expiry) to be confirmed with the expiry time the updated script prints |
 
 ---
 
