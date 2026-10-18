@@ -39,7 +39,10 @@ export const PlaygroundCapture = z.object({
     .object({
       event_id: z.string().min(1),
       event_type: z.string().optional(),
+      /** Physical time of the event: `attributes.start` of the Ring history event. */
       occurred_at: z.string().datetime({ offset: true }).optional(),
+      /** End of the event (`attributes.end`); a Playground simulation lasts about 22 s. */
+      ended_at: z.string().datetime({ offset: true }).optional(),
     })
     .optional(),
 });
@@ -60,7 +63,26 @@ export function isPlaygroundCapture(payload: unknown): boolean {
  * `id`/`event_id`, `type`/`event_type` and an epoch-ms or ISO timestamp from the item or its
  * `attributes`. Returns undefined when nothing identifiable is found — it never invents an event.
  */
-export function latestHistoryEvent(body: unknown): { event_id: string; event_type?: string; occurred_at?: string; raw: unknown } | undefined {
+export interface RingHistoryEvent {
+  event_id: string;
+  event_type?: string;
+  /** Start of the event, ISO 8601. */
+  occurred_at?: string;
+  /** End of the event, ISO 8601, when Ring gives one. */
+  ended_at?: string;
+  raw: unknown;
+}
+
+/**
+ * Newest event of a `GET /v1/history/devices/{id}/events` response.
+ *
+ * Observed shape (Ring Developer Playground, 2026-10-18): JSON:API `data[]` of
+ * `{ type: "history-events", id, attributes: { event_type: "on_demand", start, end,
+ * is_third_party_reviewed }, relationships: { cv_detections, source } }`, with `start` and
+ * `end` in epoch milliseconds. Other field names are still accepted, and an item without an
+ * id is never turned into an event.
+ */
+export function latestHistoryEvent(body: unknown): RingHistoryEvent | undefined {
   const obj = (body ?? {}) as Record<string, unknown>;
   const list = Array.isArray(body) ? body : [obj.data, obj.events, obj.items, obj.results].find(Array.isArray);
   if (!Array.isArray(list)) return undefined;
@@ -73,7 +95,7 @@ export function latestHistoryEvent(body: unknown): { event_id: string; event_typ
     }
     return undefined;
   };
-  let best: { event_id: string; event_type?: string; occurred_at?: string; raw: unknown } | undefined;
+  let best: RingHistoryEvent | undefined;
   for (const item of list) {
     if (!item || typeof item !== "object") continue;
     const it = item as Record<string, unknown>;
@@ -81,8 +103,15 @@ export function latestHistoryEvent(body: unknown): { event_id: string; event_typ
     const id = it.id ?? it.event_id ?? at.id ?? at.event_id;
     if (typeof id !== "string" && typeof id !== "number") continue;
     const type = it.event_type ?? at.event_type ?? at.type ?? it.type;
-    const when = toIsoTime(at.timestamp ?? it.timestamp ?? at.created_at ?? it.created_at ?? at.start_time ?? it.start_time ?? at.time ?? it.time);
-    const cand = { event_id: String(id), ...(typeof type === "string" ? { event_type: type } : {}), ...(when ? { occurred_at: when } : {}), raw: item };
+    const when = toIsoTime(at.start ?? it.start ?? at.timestamp ?? it.timestamp ?? at.created_at ?? it.created_at ?? at.start_time ?? it.start_time ?? at.time ?? it.time);
+    const until = toIsoTime(at.end ?? it.end ?? at.end_time ?? it.end_time);
+    const cand: RingHistoryEvent = {
+      event_id: String(id),
+      ...(typeof type === "string" ? { event_type: type } : {}),
+      ...(when ? { occurred_at: when } : {}),
+      ...(when && until ? { ended_at: until } : {}),
+      raw: item,
+    };
     if (!best || (cand.occurred_at ?? "") > (best.occurred_at ?? "")) best = cand;
   }
   return best;
@@ -125,7 +154,8 @@ export function normalizePlaygroundRecord(record: RawSourceRecord): NormalizeOut
       api_status: cap.api_evidence.http_status,
       zone_binding: "declared by operator at capture session",
       capture_id: cap.capture_id,
-      time_source: cap.ring_event?.occurred_at ? "ring history event timestamp" : "capture time",
+      time_source: cap.ring_event?.occurred_at ? "ring history event start" : "capture time",
+      ...(cap.ring_event?.ended_at ? { ring_event_ended_at: cap.ring_event.ended_at } : {}),
       ...(cap.ring_event?.event_type ? { ring_event_type: cap.ring_event.event_type } : {}),
       ...(cap.operator_note ? { operator_note: cap.operator_note } : {}),
     },

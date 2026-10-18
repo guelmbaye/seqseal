@@ -7,18 +7,20 @@
  *         for docs/ring-playground-observations.md and docs/FRICTION_LOG.md.
  *
  *   RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
- *         [--session <name>] [--post <seqseal-url> --token <demo-token>] [--wait <s>] [--no-history]
+ *         [--session <name>] [--again] [--post <seqseal-url> --token <demo-token>] [--wait <s>] [--max-age <s>] [--no-history]
  *       → run right after clicking a simulation in the Playground. Reads the device's event
- *         history and binds the capture to the newest Ring event not captured before (its id
- *         and timestamp become the source event and the physical time); falls back to a status
- *         probe if no history event appears within --wait seconds (default 60). With --post, checks
+ *         history and binds the capture to the newest Ring event, if no session captured it before
+ *         and it ended less than --max-age seconds ago (default 180) (its id
+ *         and `start` become the source event and the physical time); falls back to a status
+ *         probe if no history event appears within --wait seconds (default 60). One session is
+ *         one delivery: the same simulation in the same zone twice is refused unless --again. With --post, checks
  *         that SEQSEAL is up first and saves the capture to fixtures/ring/captures/<session>.jsonl
  *         (for Ring-derived replay) only once SEQSEAL accepted it.
  *
  * The base URL defaults to https://api.amazonvision.com (Ring API reference); set
  * RING_API_BASE_URL if the Playground uses another host. Nothing here invents semantics.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { compilePwpsFile } from "@pwps/core";
@@ -142,6 +144,43 @@ if (cmd === "discover") {
   const post = arg("post")?.replace(/\/$/, "");
   const demoToken = arg("token") ?? process.env.SEQSEAL_DEMO_TOKEN ?? "";
 
+  // Captures that SEQSEAL accepted are appended to fixtures/ring/captures/<session>.jsonl so the
+  // session can later be replayed as RING_DERIVED_REPLAY (demo fallback level 2).
+  const session = arg("session") ?? `playground-${new Date().toISOString().slice(0, 10)}`;
+  const capDir = join("fixtures", "ring", "captures");
+  mkdirSync(capDir, { recursive: true });
+  const sessionFile = join(capDir, `${session.replace(/[^A-Za-z0-9._-]/g, "-")}.jsonl`);
+  type SavedCapture = { simulation_source?: string; session_zone?: string; captured_at?: string; ring_event?: { event_id: string } };
+  const previous = existsSync(sessionFile)
+    ? readFileSync(sessionFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as SavedCapture)
+    : [];
+  // Ring events already captured in ANY session: the newest history event may still be the
+  // previous delivery's last step until the new simulation's event shows up.
+  const capturedIn = new Map<string, string>();
+  for (const f of readdirSync(capDir).filter((n) => n.endsWith(".jsonl"))) {
+    for (const l of readFileSync(join(capDir, f), "utf8").split("\n").filter(Boolean)) {
+      try {
+        const id = (JSON.parse(l) as SavedCapture).ring_event?.event_id;
+        if (id) capturedIn.set(id, f.replace(/\.jsonl$/, ""));
+      } catch {
+        /* a damaged line is not an event id */
+      }
+    }
+  }
+  const stepOf = (c: SavedCapture) => `${c.simulation_source} -> ${c.session_zone}`;
+
+  // A session is one delivery: the same simulation in the same zone twice would be a second
+  // Arrival (or a second Staging…), which SEQSEAL rightly treats as ambiguous and sends to review.
+  const same = previous.find((c) => c.simulation_source === source && c.session_zone === zone);
+  if (same && !process.argv.includes("--again")) {
+    console.error(
+      `  ${FAIL} session "${session}" already has ${stepOf(same)}${same.captured_at ? ` (captured ${same.captured_at.slice(11, 19)} UTC)` : ""}. Ring was not called and nothing was saved.\n` +
+        "    One session is one delivery: the same step twice would put two of that step in the delivery, and SEQSEAL would send it to review.\n" +
+        "    For the next delivery, use a new session (for example --session demo-b). To repeat this step on purpose, add --again.",
+    );
+    process.exit(1);
+  }
+
   // 0. If the capture goes to SEQSEAL, make sure SEQSEAL is up before touching Ring or saving anything.
   //    In dev mode (`pnpm demo`) the first request to a route compiles it, which can take several
   //    seconds: keep waiting while the server answers slowly, fail fast only if nothing listens.
@@ -176,37 +215,48 @@ if (cmd === "discover") {
     }
   }
 
-  // Captures that SEQSEAL accepted are appended to fixtures/ring/captures/<session>.jsonl so the
-  // session can later be replayed as RING_DERIVED_REPLAY (demo fallback level 2).
-  const session = arg("session") ?? `playground-${new Date().toISOString().slice(0, 10)}`;
-  const capDir = join("fixtures", "ring", "captures");
-  mkdirSync(capDir, { recursive: true });
-  const sessionFile = join(capDir, `${session.replace(/[^A-Za-z0-9._-]/g, "-")}.jsonl`);
-  const previous = existsSync(sessionFile)
-    ? readFileSync(sessionFile, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { ring_event?: { event_id: string } })
-    : [];
-  const used = new Set(previous.flatMap((c) => (c.ring_event ? [c.ring_event.event_id] : [])));
-
   // 1. Ground the capture in the Ring history event the simulation produced.
   const waitSeconds = Math.max(0, Number(arg("wait") ?? 60));
+  // A simulation's event shows up within about 30 s of its end (observed 2026-10-18). Anything much
+  // older belongs to an earlier simulation and must not become this step's physical time.
+  const maxAgeSeconds = Math.max(1, Number(arg("max-age") ?? 180));
   let ringEvent: ReturnType<typeof latestHistoryEvent>;
+  let skipped = "";
   let lastHistory: unknown;
   if (!process.argv.includes("--no-history")) {
-    const deadline = Date.now() + waitSeconds * 1000;
+    const waitStarted = Date.now();
+    const deadline = waitStarted + waitSeconds * 1000;
     for (let i = 0; ; i++) {
       lastHistory = await attempt("event history", () => ring.getEventHistory(device));
       ringEvent = latestHistoryEvent(lastHistory);
-      if (ringEvent && !used.has(ringEvent.event_id)) break;
+      if (ringEvent) {
+        const endMs = Date.parse(ringEvent.ended_at ?? ringEvent.occurred_at ?? "");
+        const age = Number.isNaN(endMs) ? undefined : Math.round((Date.now() - endMs) / 1000);
+        const owner = capturedIn.get(ringEvent.event_id);
+        if (owner) skipped = `the newest Ring event (${ringEvent.event_id.slice(-12)}) was already captured in session "${owner}"`;
+        else if (age !== undefined && age > maxAgeSeconds) skipped = `the newest Ring event (${ringEvent.event_id.slice(-12)}) ended ${age} s ago, more than --max-age ${maxAgeSeconds} s`;
+        else break;
+      }
       ringEvent = undefined;
       if (Date.now() >= deadline) break;
       if (i === 0) console.log(`  waiting up to ${waitSeconds} s for a new Ring history event…`);
       await new Promise((r) => setTimeout(r, 5000));
     }
     if (ringEvent) {
-      console.log(`  ${OK} Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}${ringEvent.occurred_at ? ` at ${ringEvent.occurred_at}` : ""}`);
+      const waited = Math.round((Date.now() - waitStarted) / 1000);
+      const lasted = ringEvent.occurred_at && ringEvent.ended_at ? (Date.parse(ringEvent.ended_at) - Date.parse(ringEvent.occurred_at)) / 1000 : undefined;
+      console.log(`  ${OK} Ring history event ${ringEvent.event_id}${ringEvent.event_type ? ` (${ringEvent.event_type})` : ""}`);
+      if (ringEvent.occurred_at) {
+        console.log(
+          `    started ${ringEvent.occurred_at.slice(11, 23)} UTC${lasted !== undefined ? `, lasted ${lasted.toFixed(1)} s` : ""}` +
+            `${waited > 0 ? `; appeared after ${waited} s of waiting` : ""}. SEQSEAL uses the start as the physical time.`,
+        );
+      } else {
+        console.log("    Ring gave no time for this event; SEQSEAL will use the capture time instead.");
+      }
     } else {
       console.log(
-        `  ! no new Ring history event within ${waitSeconds} s. Ring returned: ${JSON.stringify(redact(lastHistory) ?? null).slice(0, 300)}\n` +
+        `  ! no new Ring history event within ${waitSeconds} s${skipped ? `: ${skipped}` : ""}. Ring returned: ${JSON.stringify(redact(lastHistory) ?? null).slice(0, 300)}\n` +
           "    Check: was the simulation clicked AFTER this token was generated, and did it finish (20–40 s)?\n" +
           "    Falling back to a status probe: it proves the Ring API answered for this device, not that this simulation happened.",
       );
@@ -229,7 +279,14 @@ if (cmd === "discover") {
       ...(ringEvent ? { response_excerpt: redact(ringEvent.raw) } : {}),
     },
     ...(ringEvent
-      ? { ring_event: { event_id: ringEvent.event_id, ...(ringEvent.event_type ? { event_type: ringEvent.event_type } : {}), ...(ringEvent.occurred_at ? { occurred_at: ringEvent.occurred_at } : {}) } }
+      ? {
+          ring_event: {
+            event_id: ringEvent.event_id,
+            ...(ringEvent.event_type ? { event_type: ringEvent.event_type } : {}),
+            ...(ringEvent.occurred_at ? { occurred_at: ringEvent.occurred_at } : {}),
+            ...(ringEvent.ended_at ? { ended_at: ringEvent.ended_at } : {}),
+          },
+        }
       : {}),
     operator_note: arg("note") ?? `Playground ${source} simulation declared as zone ${zone}`,
   };
@@ -264,7 +321,8 @@ if (cmd === "discover") {
   }
   appendFileSync(sessionFile, `${JSON.stringify(capture)}\n`);
   console.log(`  saved to ${sessionFile} (${previous.length + 1} capture${previous.length ? "s" : ""} in this session; replay later with: pnpm replay --captures ${sessionFile})`);
+  console.log(`  steps in session "${session}": ${[...previous, capture].map(stepOf).join(", ")}`);
 } else {
-  console.error("usage: ring-spike.ts discover | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>] [--session <name>] [--wait <seconds>] [--no-history]");
+  console.error("usage: ring-spike.ts discover | capture --device <id> --source <PACKAGE|VEHICLE|MOTION> --zone <zone> [--post <url> --token <t>] [--session <name>] [--again] [--wait <seconds>] [--max-age <seconds>] [--no-history]");
   process.exit(2);
 }

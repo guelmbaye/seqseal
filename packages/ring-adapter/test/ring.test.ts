@@ -148,6 +148,55 @@ describe("Ring event history (tolerant, never invents an event)", () => {
     expect(e).toMatchObject({ event_id: "evt-2", event_type: "on_demand", occurred_at: "2026-10-18T14:03:00.000Z" });
   });
 
+  it("reads the shape the Playground actually returned (attributes.start / end in epoch ms)", () => {
+    // Verbatim items from GET /v1/history/devices/{id}/events, 2026-10-18 16:22–16:23 UTC (ids shortened).
+    const item = (id: string, start: number, end: number) => ({
+      type: "history-events",
+      id,
+      attributes: { end, is_third_party_reviewed: true, event_type: "on_demand", start },
+      relationships: { cv_detections: { data: [] }, source: { data: { type: "devices", id: "ava1.ring.device.DJXHOX5" } } },
+      meta: { riid: null },
+    });
+    const e = latestHistoryEvent({
+      data: [item("ava1.ring.history.event.DZKCH44U", 1792340491490, 1792340513250), item("ava1.ring.history.event.R4BHNYLH", 1792340546024, 1792340567784)],
+    });
+    expect(e).toMatchObject({
+      event_id: "ava1.ring.history.event.R4BHNYLH",
+      event_type: "on_demand",
+      occurred_at: "2026-10-18T16:22:26.024Z",
+      ended_at: "2026-10-18T16:22:47.784Z",
+    });
+  });
+
+  it("feeds the Ring start time, not the capture time, into the observation", () => {
+    const capture = {
+      capture_id: "pg-ava1.ring.history.event.DZKCH44U",
+      simulation_source: "VEHICLE",
+      session_zone: "receiving-entry",
+      device_id: "ava1.ring.device.DJXHOX5",
+      captured_at: "2026-10-18T16:22:24.866Z",
+      api_evidence: { method: "GET", endpoint: "/v1/history/devices/ava1.ring.device.DJXHOX5/events", http_status: 200, request_id: "a38ea6fb-5ca2-48e9-8ee6-b5717d590ad8" },
+      ring_event: { event_id: "ava1.ring.history.event.DZKCH44U", event_type: "on_demand", occurred_at: "2026-10-18T16:21:31.490Z", ended_at: "2026-10-18T16:21:53.250Z" },
+    };
+    const record: RawSourceRecord = {
+      source_record_id: "raw-1",
+      provider: "ring",
+      source_profile: "RING_PLAYGROUND",
+      idempotency_key: "idem-1",
+      received_at: "2026-10-18T16:22:25.000Z",
+      signature_verified: false,
+      correlation_id: "corr-1",
+      payload: capture,
+    };
+    const out = normalizeSourceRecord(record);
+    if (!out.ok) throw new Error(out.error);
+    expect(out.observation).toMatchObject({
+      occurred_at: "2026-10-18T16:21:31.490Z",
+      source_event_ref: "ava1.ring.history.event.DZKCH44U",
+      attributes: { time_source: "ring history event start", ring_event_ended_at: "2026-10-18T16:21:53.250Z" },
+    });
+  });
+
   it("reads events[] with ISO created_at and event_type", () => {
     const e = latestHistoryEvent({ events: [{ event_id: 42, event_type: "motion", created_at: "2026-10-18T14:06:00Z" }] });
     expect(e).toMatchObject({ event_id: "42", event_type: "motion", occurred_at: "2026-10-18T14:06:00.000Z" });

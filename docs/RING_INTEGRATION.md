@@ -56,7 +56,9 @@ pnpm sign-webhook --url https://<api>/integrations/ring/webhook --secret <signin
 The Ring Developer Playground offers simulated live-view sources (Package, Vehicle, Motion) behind real Ring API calls, with a short-lived token. It is **not** a webhook simulator, so SEQSEAL does not fabricate `motion_detected.package_delivery` events from it. Instead, a **capture** records:
 
 - `simulation_source` (`PACKAGE` | `VEHICLE` | `MOTION`) and the `session_zone` the operator declared for that session;
-- `ring_event`: the Ring history event the simulation produced (id, type, timestamp). It is read from `GET /v1/history/devices/{id}/events` right after the simulation. The Ring event id becomes the source event reference, and its timestamp the physical time; capturing the same event twice gives one observation;
+- `ring_event`: the Ring history event the simulation produced (id, type, start and end). It is read from `GET /v1/history/devices/{id}/events` right after the simulation. The Ring event id becomes the source event reference, `start` the physical time, and `end` is kept; capturing the same event twice gives one observation. Observed shape: JSON:API `data[]` of `history-events` items with `attributes.event_type: "on_demand"` and `start` / `end` in epoch ms ([ring-playground-observations.md](ring-playground-observations.md) §3);
+- the capture takes the newest history event only if no saved session captured it already and it ended less than 180 s ago (`--max-age`). Until the new simulation's event is listed, the newest one may still belong to the previous step or delivery;
+- one session is one delivery: the same simulation in the same zone twice in a session is refused (`--again` overrides), because it would put two Arrivals, or two Stagings, in one delivery;
 - `api_evidence`: the Ring API call actually made (method, endpoint, HTTP status, request id, response excerpt). A capture without a 2xx Ring call is refused, so no provenance is invented. If no new history event appears within 60 s, the capture falls back to a status probe and records that;
 - optional `device_id`, `component_id`, `media_session_ref`.
 
@@ -66,7 +68,7 @@ The observation type is `live_view_simulation`; the Ring event type (for example
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts discover
 # click a simulation in the Playground, wait for it to finish, then:
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
-  [--session <name>] --post http://localhost:3000 [--token <demo-token>]
+  --session demo-a --post http://localhost:3000 [--token <demo-token>] [--again] [--wait <s>] [--max-age <s>]
 ```
 
 Every capture is also appended to `fixtures/ring/captures/<session>.jsonl`. Such a session can be replayed later through the normal pipeline, labelled `RING_DERIVED_REPLAY`:

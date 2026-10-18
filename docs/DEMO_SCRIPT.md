@@ -24,15 +24,17 @@ pnpm build && pnpm --filter @seqseal/web start      # or `pnpm demo`
 
 ### Live Playground session (level 1)
 
-Generate a Playground token first. Then, for each step:
+Generate a Playground token first, before clicking any simulation. A token lasts about 30 minutes, and one delivery takes about 5: generate a new one if fewer than 10 minutes are left. Then, for each step, once:
 
 1. Click the simulation in the Playground.
-2. Wait for it to finish.
-3. Run the capture command:
+2. Wait for it to finish (about 22 s).
+3. Run the capture command. It waits until Ring lists the new event (about 30 s after the end of the simulation):
 
 ```bash
-pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|MOTION> --zone <zone> --post http://localhost:3000
+pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|MOTION> --zone <zone> --post http://localhost:3000 --session demo-a
 ```
+
+Use `--session demo-a` for Delivery A and `--session demo-b` for Delivery B. One session is one delivery. The command refuses to capture the same step twice in a session, because a second Arrival makes the delivery ambiguous and SEQSEAL sends it to review.
 
 | Step | Simulation | `--zone` | Delivery A | Delivery B |
 |---|---|---|---|---|
@@ -45,6 +47,7 @@ pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|M
 - **Time limit:** stay within 7 minutes between Arrival and Staging (TEMP-01).
 - **Hero screen:** the checklist follows the session. Delivery A fills in, then Delivery B appears next to it.
 - **Fallback:** every capture is saved to `fixtures/ring/captures/<session>.jsonl`, which becomes the level 2 replay.
+- **Start over:** press **Clear results**, delete the session file, and capture the delivery again with new simulations. Old Ring events are never reused: the command skips events another session already captured and events that ended more than 3 minutes ago.
 
 ## 0:00–0:12: the Obvious Magic (works muted)
 

@@ -152,7 +152,7 @@ Decisions taken when aligning the implementation with the **SEQSEAL Implementati
 - Grounding the capture in the Ring event makes "hero evidence is traceable to Ring" (§55) true at the event level, not just at the API-call level.
 - The saved session is demo fallback level 2.
 
-**Not assumed.** The history parser is tolerant on purpose (JSON:API `data[]`, `events[]`, bare arrays; epoch-ms or ISO). The real shape must be confirmed during the spike and recorded in `ring-playground-observations.md`.
+**Not assumed.** The history parser is tolerant on purpose (JSON:API `data[]`, `events[]`, bare arrays; epoch-ms or ISO). The real shape must be confirmed during the spike and recorded in `ring-playground-observations.md`. It was confirmed on 2026-10-18: see BN-024.
 
 ## BN-021 — Benchmark aligned with §22, §43 and §44
 
@@ -187,3 +187,23 @@ Terraform sets `BEDROCK_DISABLED=true` whenever Bedrock evidence is not enabled.
 - `ring-playground-observations.md`, the Ring Source Spike record required by the original specification.
 
 No new strategy document was added.
+
+## BN-024 — Ring history time is `start`; capture guards
+
+**Observed (2026-10-18, 16:21–16:23 UTC).** Playground history events are `history-events` items whose time is `attributes.start` and `attributes.end` in epoch milliseconds, with `event_type: "on_demand"` and an empty `cv_detections`. The parser read neither field, so the first two real captures took the capture time (26–32 s late). The same session also received the Arrival step twice, and SEQSEAL sent that delivery to review.
+
+**Decision.**
+
+- `latestHistoryEvent` reads `start` first, as the physical time, and keeps `end` as `ring_event.ended_at`. The observation records both (`time_source: ring history event start`, `ring_event_ended_at`). A test pins the verbatim shape.
+- `start` rather than `end`, because the simulated vehicle or package appears at the start of the session.
+- The capture command refuses the same simulation in the same zone twice in one session, unless `--again`. It ignores a history event that any saved session already captured, or that ended more than `--max-age` seconds ago (default 180), and waits for the new one.
+
+**Why.**
+
+- §24: build against observed Playground behavior, not assumed field names.
+- The two guards close the two ways a live capture could put the wrong time or the wrong step into a delivery:
+  - the newest history event can still be the previous step's until the new one is listed;
+  - one keystroke can repeat a step.
+
+  SEQSEAL already reacts safely to both (dedup by Ring event id, review on a second Arrival). Refusing them at capture time keeps a live demo on track.
+

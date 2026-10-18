@@ -29,7 +29,7 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 
 | Item | Status | What is needed before claiming it |
 |---|---|---|
-| Live Ring Developer Playground captures | adapter, capture endpoint and spike script implemented. Captures bind to the Ring history event and are saved per session. Tested with constructed captures | run `scripts/ring-spike.ts` with a Playground token; fill [ring-playground-observations.md](ring-playground-observations.md) |
+| Live Ring Developer Playground captures | Partly demonstrated on 2026-10-18. Two live VEHICLE captures were bound to real Ring history events and accepted by a running SEQSEAL (HTTP 202); the history shape is recorded in [ring-playground-observations.md](ring-playground-observations.md). That session repeated the Arrival step, so SEQSEAL sent it to review, and no complete delivery has been captured live yet | Deliveries A and B, five live captures each, ending Released and Held. Until then, the only true live claim is "SEQSEAL ingests Ring Playground events grounded in Ring's event history" |
 | Ring-derived replay | profile, replay path and UI implemented, tested with constructed captures | a session file captured from the real Playground (`fixtures/ring/captures/*.jsonl`) |
 | Ring production webhooks | endpoint, HMAC, envelope parsing implemented | a registered Ring app delivering to `webhook_url` |
 | AWS deployment | Terraform, bundles and handlers implemented; HCL parsed, bundles invoked locally | `terraform apply` in an AWS account, then an end-to-end run |

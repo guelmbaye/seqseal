@@ -91,6 +91,22 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Suggested improvement | Show the token expiry time next to Generate Token in the Playground, and return an explicit `token_expired` reason in the 401 body |
 | Status | Resolved by workaround. The next token's `exp` claim gave about 30 minutes of validity (read at 09:05 UTC: valid until 09:34 UTC), consistent with the first token having expired between discovery and capture |
 
+## FL-006 — A Playground history event does not say which simulation produced it
+
+| | |
+|---|---|
+| Date | 2026-10-18 |
+| Tool / API | Ring Developer Playground · `GET /v1/history/devices/{id}/events` |
+| Task | Ring Source Spike: bind each capture to the Ring event of the simulation just clicked |
+| Steps | 16:21 and 16:22 UTC: click Vehicle in the Playground, wait for the end, run `ring-spike.ts capture --source VEHICLE`. Each run reads the device's event history |
+| Expected | Something in the event naming the simulated source: a vehicle entry in `cv_detections`, or a field saying "vehicle" |
+| Actual | Both events: `event_type: "on_demand"`, `relationships.cv_detections.data: []`, attributes `start`, `end`, `is_third_party_reviewed` only. HTTP 200, request ids `a38ea6fb-5ca2-48e9-8ee6-b5717d590ad8` and `3ac0abbb-9241-4711-9e74-0c0e2a891bc7` |
+| Severity | Minor |
+| Impact | Ring proves that a simulation ran on the device, and when. It does not prove which one ran. The source (VEHICLE, PACKAGE, MOTION) must be declared by the operator with `--source`, and the evidence drawer says so |
+| Workaround | None needed. The operator-declared source and zone were already the design (BUILD_NOTES BN-003) |
+| Suggested improvement | Populate `cv_detections` for Playground simulations with the class that was shown (vehicle, package, person), as a real camera would |
+| Status | Open. Observed for VEHICLE only; PACKAGE and MOTION to confirm |
+
 ---
 
 ## Template for the live Ring spike and AWS deployment

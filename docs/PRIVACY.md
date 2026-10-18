@@ -9,7 +9,7 @@ SEQSEAL works on events from cameras that watch people at work. It is designed t
 | Raw Ring source record | the notification body (device id, event type and subtype, timestamps, Ring request id). HTTP headers are not stored. | DynamoDB `evidence` table / memory | life of the table |
 | Normalized observation | device, logical zone, event type, physical time and precision | DynamoDB / memory | life of the table |
 | Evidence, evaluations, decisions, receipts | workflow states, rule results, hashes, provenance ids | DynamoDB, receipts and evaluation snapshots as JSON in S3 | receipts are audit records; noncurrent S3 versions expire after 30 days |
-| Saved Playground capture sessions | device id, declared zone, simulation source, Ring event id and timestamp, the Ring API call made (token redacted) | `fixtures/ring/captures/*.jsonl` in the repository | until deleted; review before committing |
+| Saved Playground capture sessions | device id, declared zone, simulation source, Ring event id, start and end times, the Ring API call made (token redacted) | `fixtures/ring/captures/*.jsonl` in the repository | until deleted; review before committing |
 | Idempotency keys | hashed delivery and event identifiers | DynamoDB `idempotency` table | TTL (`expires_at`) |
 | Media (only if `ENABLE_BEDROCK_EVIDENCE=true`) | a single Ring snapshot for an observation that needs interpretation | S3 `media/` prefix, SSE-KMS | expires after 7 days (`media_expiration_days`) |
 
