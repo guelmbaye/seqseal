@@ -107,6 +107,22 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Suggested improvement | Populate `cv_detections` for Playground simulations with the class that was shown (vehicle, package, person), as a real camera would |
 | Status | Open. Observed for VEHICLE only; PACKAGE and MOTION to confirm |
 
+## FL-007 — Event history calls sometimes take 10 s or more
+
+| | |
+|---|---|
+| Date | 2026-10-18 |
+| Tool / API | Ring API · `GET /v1/history/devices/{id}/events` |
+| Task | Poll the device's history every 5 s while a Playground simulation plays |
+| Steps | `ring-spike.ts history` at 17:38:32 UTC, then `capture` at 17:39 and 17:50, with a 10 s client timeout per call |
+| Expected | Latency close to the 871 ms measured at discovery |
+| Actual | 9 787 ms for one call (request id `2fc36400-fb53-4e2f-bc87-4314151c7aff`). Three other calls were still unanswered after 10 s and were aborted by the client. Later calls in the same polls answered normally |
+| Severity | Minor |
+| Impact | A capture could miss its event until the next poll, and the abort message looked like a failure |
+| Workaround | The capture waits 25 s per call, says "Ring did not answer within 25 s; asking again", and keeps polling |
+| Suggested improvement | Document the expected latency of the history endpoint, or offer a `since` filter so polls stay small |
+| Status | Resolved by workaround |
+
 ---
 
 ## Template for the live Ring spike and AWS deployment

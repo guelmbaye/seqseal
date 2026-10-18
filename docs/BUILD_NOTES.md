@@ -222,3 +222,18 @@ No new strategy document was added.
 
 **Why.** §55 asks that hero evidence be traceable to Ring. A status call proves that Ring answered, not that the step happened, and a judge opening the drawer must be able to tell the two apart. The fallback is kept, because it still beats inventing provenance, but it is never presented as a Ring event.
 
+## BN-026 — The capture checks the lane, not just the session
+
+**Observed (2026-10-18, 17:37–17:51 UTC).** Delivery A stopped after its Arrival, and the next three captures were run in session `demo-b` without an Arrival. SEQSEAL correlates by lane, one active delivery at a time (BN-015), and knows nothing of the capture sessions. So the three steps joined A's delivery. The result was one delivery with Staging 11.9 min after Arrival, DEVIATED → HOLD on TEMP-01.
+
+**Decision.** Before calling Ring, `capture --post` asks SEQSEAL for the open deliveries (`GET /api/executions`; open means ACTIVE with no terminal state observed). It maps the declared source and zone to a protocol state through the configured `MAP-PG-*` mappings, then refuses:
+
+- a step that matches no mapping, since it would check no box;
+- an Arrival (the protocol's opening state) while a delivery is open;
+- any other step when no delivery is open;
+- the first step of a new session when it is not an Arrival and a delivery is already open.
+
+Otherwise it says which delivery the step is added to. `--force` overrides the check. If SEQSEAL cannot be asked, the check is skipped with a notice.
+
+**Why.** Each of these mistakes produces a correct but unintended verdict, such as REVIEW or HOLD, that costs a whole live session to undo. The mappings and the protocol remain the only source of truth: the script hard-codes no step names.
+

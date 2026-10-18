@@ -24,17 +24,18 @@ pnpm build && pnpm --filter @seqseal/web start      # or `pnpm demo`
 
 ### Live Playground session (level 1)
 
-Generate a Playground token first, before clicking any simulation. A token lasts about 30 minutes, and one delivery takes about 5: generate a new one if fewer than 10 minutes are left. Then, for each step, once:
+Generate a Playground token first, before clicking any simulation. A token lasts about 30 minutes, and one delivery takes about 5: generate a new one if fewer than 12 minutes are left. Then, for each step, once:
 
-1. Click the simulation in the Playground.
-2. Wait for it to finish (about 22 s).
-3. Run the capture command. It waits until Ring lists the new event (about 30 s after the end of the simulation):
+1. Click the simulation in the Playground. Ring only records an event for a simulation that is played.
+2. Run the capture command right away. Ring lists the event at about the end of the clip (Package and Motion about 22 s, Vehicle about 40 s), and the command waits up to 90 s for it:
 
 ```bash
 pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|MOTION> --zone <zone> --post http://localhost:3000 --session demo-a
 ```
 
 Use `--session demo-a` for Delivery A and `--session demo-b` for Delivery B. One session is one delivery. The command refuses to capture the same step twice in a session, because a second Arrival makes the delivery ambiguous and SEQSEAL sends it to review.
+
+Finish Delivery A (all five steps) before starting B. The command checks the lane with SEQSEAL and refuses a step that would land in the wrong delivery: an Arrival while A is open, a first step of B that is not an Arrival, or a step with no delivery open.
 
 For a recording, add `--require-event`. Each step must then print `[ok] Ring history event …`; otherwise nothing is sent, and you click the simulation again. Without it, a step Ring did not list falls back to a status probe, and the evidence drawer says "Ring API call only". If no event appears, run `pnpm tsx scripts/ring-spike.ts history --device <id>` right after a simulation to see what Ring lists.
 

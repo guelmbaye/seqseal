@@ -30,6 +30,7 @@ import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, write
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { compilePwpsFile } from "@pwps/core";
+import { loadPipelineConfig } from "@seqseal/pipeline";
 import { latestHistoryEvent, RingApiClient, RingApiError, summarizeDevices, summarizeHistory, type RingApiCallLog } from "@seqseal/ring-adapter";
 
 const arg = (name: string) => {
@@ -84,7 +85,13 @@ function stopOnAuthError(err: unknown, label: string): void {
   }
 }
 const calls: RingApiCallLog[] = [];
-const ring = new RingApiClient({ baseUrl: process.env.RING_API_BASE_URL ?? "https://api.amazonvision.com", accessToken: token, onRequest: (l) => calls.push(l) });
+// History calls were observed taking ~10 s (2026-10-18): allow 25 s before giving up on one call.
+const ring = new RingApiClient({
+  baseUrl: process.env.RING_API_BASE_URL ?? "https://api.amazonvision.com",
+  accessToken: token,
+  timeoutMs: 25_000,
+  onRequest: (l) => calls.push(l),
+});
 const redact = (v: unknown) => JSON.parse(JSON.stringify(v ?? null).split(token).join("<redacted>"));
 
 async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promise<T | undefined> {
@@ -93,6 +100,7 @@ async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promis
   } catch (err) {
     stopOnAuthError(err, label);
     if (err instanceof RingApiError) console.log(`  ${FAIL} ${label}: HTTP ${err.status} ${err.body.slice(0, 200)}`);
+    else if (err instanceof Error && err.name === "AbortError") console.log(`  ! ${label}: Ring did not answer within 25 s; asking again.`);
     else console.log(`  ${FAIL} ${label}: ${String(err)}`);
     return undefined;
   }
@@ -245,8 +253,56 @@ if (cmd === "discover") {
     }
   }
 
+  // 0b. SEQSEAL knows lanes, not sessions: one delivery is open per lane at a time (BN-015).
+  //     Refuse a step that would land in the wrong delivery, before touching Ring.
+  const pipelineConfig = loadPipelineConfig();
+  const { protocol } = pipelineConfig;
+  const state = pipelineConfig.sources.mappings.find(
+    (m) => m.when.event_type.includes("live_view_simulation") && m.when.logical_zone === zone && (!m.when.simulation_source || m.when.simulation_source.includes(source)),
+  )?.state;
+  const label = (s: string) => protocol.stateIndex[s]?.label ?? s;
+  const force = process.argv.includes("--force");
+  const refuse = (why: string) => {
+    console.error(`  ${FAIL} ${why}\n    Ring was not called and nothing was saved.${force ? "" : " To capture anyway, add --force."}`);
+    if (!force) process.exit(1);
+  };
+  if (!state) refuse(`${source} in zone ${zone} matches no workflow step, so it would check no box.`);
+  if (post && state) {
+    let open: Array<{ execution_id: string; observed: string[] }> | undefined;
+    try {
+      const r = await fetch(`${post}/api/executions?limit=50`, { signal: AbortSignal.timeout(20_000) });
+      const list = r.ok ? ((await r.json()) as Array<{ execution_id: string; status: string; observed: string[] }>) : undefined;
+      open = list?.filter((e) => e.status === "ACTIVE" && !e.observed.some((s) => protocol.terminalStates.includes(s)));
+    } catch {
+      open = undefined;
+    }
+    if (!open) console.log("  ! could not read the open deliveries from SEQSEAL; skipping the lane check.");
+    else {
+      const current = open[0];
+      const steps = (e: { observed: string[] }) => e.observed.map(label).join(", ") || "none";
+      const remaining = (e: { observed: string[] }) => protocol.expectedSequence.filter((s) => !e.observed.includes(s)).map(label).join(", ");
+      if (state === protocol.openingState && current) {
+        refuse(
+          `delivery ${current.execution_id} is still open (steps so far: ${steps(current)}). A second ${label(state)} on the same lane would make both deliveries ambiguous, and SEQSEAL would send them to review.\n` +
+            `    Finish it first (remaining: ${remaining(current)}), or press Clear results to start over.`,
+        );
+      } else if (state !== protocol.openingState && !current) {
+        refuse(`no delivery is open on the lane. Capture its ${label(protocol.openingState)} first (VEHICLE in receiving-entry); this step would otherwise belong to no delivery.`);
+      } else if (state !== protocol.openingState && current && previous.length === 0) {
+        refuse(
+          `session "${session}" has no ${label(protocol.openingState)} yet, so this step would be added to the delivery that is already open, ${current.execution_id} (steps so far: ${steps(current)}).\n` +
+            `    Continue that delivery in its own session, or press Clear results and start with ${label(protocol.openingState)}.`,
+        );
+      } else if (current) {
+        console.log(`  adding ${label(state)} to delivery ${current.execution_id} (steps so far: ${steps(current)})`);
+      }
+    }
+  }
+
   // 1. Ground the capture in the Ring history event the simulation produced.
-  const waitSeconds = Math.max(0, Number(arg("wait") ?? 60));
+  // A Vehicle simulation lasts ~40 s and its event is listed at about its end: 90 s leaves room
+  // for clicking the simulation just after starting this command.
+  const waitSeconds = Math.max(0, Number(arg("wait") ?? 90));
   // A simulation's event shows up within about 30 s of its end (observed 2026-10-18). Anything much
   // older belongs to an earlier simulation and must not become this step's physical time.
   const maxAgeSeconds = Math.max(1, Number(arg("max-age") ?? 180));
@@ -270,7 +326,7 @@ if (cmd === "discover") {
       }
       ringEvent = undefined;
       if (Date.now() >= deadline) break;
-      if (i === 0) console.log(`  waiting up to ${waitSeconds} s for a new Ring history event…`);
+      if (i === 0) console.log(`  waiting up to ${waitSeconds} s for the event of the ${source} simulation. If you have not clicked it in the Playground yet, click it now.`);
       await new Promise((r) => setTimeout(r, 5000));
     }
     if (ringEvent) {
@@ -291,7 +347,8 @@ if (cmd === "discover") {
           `    Ring listed ${lastHistory?.items.length ?? 0} event(s) on ${lastHistory?.pages.length ?? 0} page(s)` +
           `${lastHistory?.newest ? `; newest ${lastHistory.newest.event_id.slice(-12)} started ${hhmmss(lastHistory.newest.occurred_at)} UTC` : ""}.` +
           ` Details: pnpm tsx scripts/ring-spike.ts history --device <id>\n` +
-          "    Check in the Playground that the simulation video actually played to its end (about 22 s).\n" +
+          "    Ring lists a simulation's event at about the end of its video (Package and Motion ~22 s, Vehicle ~40 s).\n" +
+          "    Click the simulation in the Playground first, then run this command; it waits for the event.\n" +
           (requireEvent
             ? "    --require-event is set: nothing was sent and nothing was saved. Click the simulation again, then rerun this command."
             : "    Falling back to a status probe: it proves the Ring API answered for this device, not that this simulation happened.\n" +

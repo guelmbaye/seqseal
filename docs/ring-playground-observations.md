@@ -2,7 +2,12 @@
 
 This sheet records what the live Ring API returns for the account used in the demo. It grounds the bindings and mappings in observed data instead of assumptions.
 
-**Status (2026-10-18): discovery done; Ring history events captured at 16:21–16:23 UTC (VEHICLE); Deliveries A and B ran live at 16:55–17:09 UTC, but Ring's history listed none of those ten simulations (open question, §3).** Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
+**Status (2026-10-18, 17:55 UTC):**
+
+- discovery done;
+- Ring history events captured for VEHICLE, PACKAGE and MOTION (16:21–16:23 and 17:37–17:51 UTC);
+- every simulation played from 17:35 on produced an event;
+- a full delivery with every step bound to a Ring event is still to capture. Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
 
 ```bash
 export RING_PLAYGROUND_TOKEN=…        # one-click Playground token, never written to disk
@@ -88,12 +93,32 @@ A new token was generated at about 16:53 (valid until 17:23). Deliveries A and B
 - So every capture fell back to a status probe (`GET /v1/devices/{id}/status`, HTTP 200), and its time is the capture time.
 - The history call itself kept answering HTTP 200. The old events were still listed with the new token, so history is not limited to the token's own lifetime.
 
-Not known yet: why these simulations left no event when the 16:21–16:23 ones did. Two explanations fit what was seen:
+No event at all was recorded between 16:23 and 17:35 UTC. The operator then found that the simulation has to be played in the Playground for its event to exist, and the captures had been run without one playing (operator report, 17:53). This is not Ring friction.
 
-- `on_demand` suggests the event is the live-view session itself, so a simulation that does not actually stream may leave no event;
-- or the Playground limits how many events a device records.
+### 17:35–17:51 UTC: every simulation played produced an event
 
-`ring-spike.ts history --device <id>` lists every event Ring returns (following `links.next`, newest first) to check this right after a simulation. Until it is explained, this is not recorded as Ring friction.
+`ring-spike.ts history` at 17:38:32 (request id `2fc36400-fb53-4e2f-bc87-4314151c7aff`, 9 787 ms):
+
+- 5 events on one page, newest first, no `links.next`;
+- 3 new events: 17:35:15 (21.8 s), 17:36:09 (31.7 s) and 17:37:18 (39.7 s), plus the two from 16:21–16:22.
+
+Captures bound to a Ring event:
+
+| Declared source → zone | Event start–end (UTC) | Duration | Listed |
+|---|---|---|---|
+| VEHICLE → receiving-entry | 17:37:18.232–17:37:57.943 | 39.71 s | before the command ran |
+| PACKAGE → staging | 17:49:12.666–17:49:34.425 | 21.76 s | at most 6.4 s after the end |
+| VEHICLE → receiving-exit | 17:50:03.304–17:50:43.014 | 39.71 s | at about the end (found 0.6 s before it, by this computer's clock) |
+| MOTION → receiving-exit | 17:50:51.242–17:51:13.001 | 21.76 s | at most 5.6 s after the end |
+
+What this establishes:
+
+- **Timing.** The event is listed at about the end of the simulation. The 26–32 s measured at 16:22 included the time before the command was started.
+- **Duration.** Each simulation is a fixed-length clip: 21.76 s and 39.71 s here, and once 31.7 s. Vehicle lasted 39.71 s in this session, but the VEHICLE events at 16:21–16:22 lasted 21.76 s. So the duration does not identify the source either (FL-006).
+- **Order of operations.** Click the simulation first, then run the capture: it waits for the event. Started the other way round, a 40 s Vehicle clip can end after a 60 s wait (it was found after 58 s at 17:50). The default wait is now 90 s.
+- **Latency.** History calls took up to 9.8 s, and three were cut off by the client's 10 s timeout (FL-007).
+
+The six captures run between 17:40 and 17:48 found no new event, because no simulation was played during their wait. `--require-event` refused them, and nothing was sent.
 
 Still to observe: the PACKAGE and MOTION events (type, `cv_detections`).
 
@@ -145,3 +170,11 @@ Sessions `demo-a` and `demo-b` (16:55–17:09 UTC), captured again from scratch:
 | B (`demo-b`) | Arrival 17:03:38, Storage 17:05:27, Staging 17:06:54, Departure 17:08:06, Clear 17:09:15 | five `GET …/status`, HTTP 200; request ids `e4b99401-…`, `0bf53a82-…`, `a5ef4f12-…`, `9d2d0b8a-…`, `efe5fd07-…` | DEVIATED → HOLD (ORDER-02: Storage 17:05 before Staging 17:06), workflow HELD |
 
 The whole chain ran live: capture, Ring API call, SEQSEAL pipeline, verdict, policy, Operational Gate. Each step's evidence, however, is the operator's declaration plus a Ring status call, not a Ring event. The evidence drawer says "Ring API call only" for these steps.
+
+Sessions `demo-a` and `demo-b` (17:37–17:51 UTC, `--require-event`):
+
+- `demo-a` got only its Arrival (17:37:18).
+- `demo-b` got Staging, Departure and Clear (17:49–17:50), but no Arrival.
+- SEQSEAL knows lanes, not sessions, so all four steps formed one delivery: Arrival 17:37:18, then Staging 11.9 min later. The verdict was DEVIATED → HOLD (TEMP-01, limit 7 min); Storage was missing.
+
+The capture command now checks the open delivery on the lane before calling Ring (BUILD_NOTES BN-026). These sessions are discarded.
