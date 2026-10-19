@@ -61,6 +61,7 @@ The Ring Developer Playground offers simulated live-view sources (Package, Vehic
 - one session is one delivery: the same simulation in the same zone twice in a session is refused (`--again` overrides), because it would put two Arrivals, or two Stagings, in one delivery;
 - with `--post`, the lane is checked before Ring is called: SEQSEAL holds one open delivery per lane, so the command refuses an Arrival while a delivery is open, any other step when none is open, a new session that does not start with an Arrival, and a source/zone pair that maps to no step (`--force` overrides; BUILD_NOTES BN-026);
 - the command waits up to 90 s (`--wait`) for the event: click the simulation first, then run it. Ring lists the event at about the end of the clip;
+- `run --delivery A|B` chains the five steps of a delivery: it prints which simulation to click and takes only an event that started after that instruction. Every step is bound to a Ring event, and the run ends with SEQSEAL's verdict and action. An interrupted run resumes where it stopped (BUILD_NOTES BN-027);
 - the history is read page by page (`links.next`, up to 5 pages), and the capture cites the call that returned the event. `--require-event` refuses a capture when no new event is found, instead of falling back to a status probe;
 - the evidence drawer shows what Ring actually supplied for each Playground step: "Ring history event" or "Ring API call only", and whether the time is the Ring event's start or the capture time;
 - `api_evidence`: the Ring API call actually made (method, endpoint, HTTP status, request id, response excerpt). A capture without a 2xx Ring call is refused, so no provenance is invented. If no new history event appears within 60 s, the capture falls back to a status probe and records that;
@@ -71,6 +72,8 @@ The observation type is `live_view_simulation`; the Ring event type (for example
 ```bash
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts discover
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts history --device <id>   # what Ring's history lists right now
+# a whole delivery, guided: the command says which simulation to click for each step
+RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts run --device <id> --post http://localhost:3000 --delivery A
 # click a simulation in the Playground, wait for it to finish, then:
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> --source PACKAGE --zone staging \
   --session demo-a --post http://localhost:3000 [--token <demo-token>] [--again] [--wait <s>] [--max-age <s>] [--require-event]

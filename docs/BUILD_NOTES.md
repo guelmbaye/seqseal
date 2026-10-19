@@ -237,3 +237,23 @@ Otherwise it says which delivery the step is added to. `--force` overrides the c
 
 **Why.** Each of these mistakes produces a correct but unintended verdict, such as REVIEW or HOLD, that costs a whole live session to undo. The mappings and the protocol remain the only source of truth: the script hard-codes no step names.
 
+## BN-027 — A guided command per live delivery
+
+**Context.** The Ring API can open a live view (WHEP session) on the Playground device. It cannot choose the simulated source: Package, Vehicle or Motion is selected in the Playground page, and no request parameter for it is documented. A delivery alternates sources at every step, so one click per step in the Playground remains. The capture-per-step workflow added typing and timing mistakes on top: a step captured twice, a step run before its click, a session started without an Arrival.
+
+**Decision.** `ring-spike.ts run --delivery A|B`:
+
+- **Plan.** It builds the plan from the protocol and the `MAP-PG-*` mappings. A is the expected sequence; B swaps the two states of the signature rule.
+- **Each step.** It prints the simulation to click and waits for a new Ring history event. The event must:
+  - not have been captured by any session;
+  - have ended less than 180 s ago;
+  - have started after the previous step;
+  - have started no earlier than 30 s before the instruction was shown.
+- **Capture.** The capture always carries the Ring event and cites the call that returned it. It is sent to SEQSEAL, then saved to the session file.
+- **Lane and resume.** It refuses to open a delivery while another is open. On resume, it checks that SEQSEAL still holds the delivery with exactly the steps already saved.
+- **Output.** It prints protocol deadlines (`WITHIN` rules) and, at the end, the verdict, action and workflow status read from SEQSEAL.
+
+**Why.** The live demo should take one click per step and nothing else, and its result must come from SEQSEAL. The command never decides a verdict or a step's state itself: it only chooses which simulation to ask for, from the configuration.
+
+**Not done.** Selecting the source through an undocumented Playground call. The Ring API does not document one, and the demo must not depend on it.
+

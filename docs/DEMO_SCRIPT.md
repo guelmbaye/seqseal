@@ -24,20 +24,30 @@ pnpm build && pnpm --filter @seqseal/web start      # or `pnpm demo`
 
 ### Live Playground session (level 1)
 
-Generate a Playground token first, before clicking any simulation. A token lasts about 30 minutes, and one delivery takes about 5: generate a new one if fewer than 12 minutes are left. Then, for each step, once:
-
-1. Click the simulation in the Playground. Ring only records an event for a simulation that is played.
-2. Run the capture command right away. Ring lists the event at about the end of the clip (Package and Motion about 22 s, Vehicle about 40 s), and the command waits up to 90 s for it:
+Generate a Playground token first, before clicking any simulation. A token lasts about 30 minutes, and one delivery takes about 5: generate a new one if fewer than 12 minutes are left. Then run one command per delivery:
 
 ```bash
-pnpm tsx scripts/ring-spike.ts capture --device <id> --source <VEHICLE|PACKAGE|MOTION> --zone <zone> --post http://localhost:3000 --session demo-a
+pnpm tsx scripts/ring-spike.ts run --device <id> --post http://localhost:3000 --delivery A
+pnpm tsx scripts/ring-spike.ts run --device <id> --post http://localhost:3000 --delivery B
 ```
 
-Use `--session demo-a` for Delivery A and `--session demo-b` for Delivery B. One session is one delivery. The command refuses to capture the same step twice in a session, because a second Arrival makes the delivery ambiguous and SEQSEAL sends it to review.
+For each step, the command prints which simulation to click ("Step 2 of 5, Staging: click PACKAGE in the Playground now"). Click it once. The command then:
 
-Finish Delivery A (all five steps) before starting B. The command checks the lane with SEQSEAL and refuses a step that would land in the wrong delivery: an Arrival while A is open, a first step of B that is not an Arrival, or a step with no delivery open.
+- waits for the Ring history event (Package and Motion clips last about 22 s, Vehicle about 40 s);
+- sends the capture to SEQSEAL;
+- moves to the next step.
 
-For a recording, add `--require-event`. Each step must then print `[ok] Ring history event …`; otherwise nothing is sent, and you click the simulation again. Without it, a step Ring did not list falls back to a status probe, and the evidence drawer says "Ring API call only". If no event appears, run `pnpm tsx scripts/ring-spike.ts history --device <id>` right after a simulation to see what Ring lists.
+At the end it prints SEQSEAL's verdict and action, for example "SEALED -> RELEASE, workflow RELEASED".
+
+What the command guarantees:
+
+- **Order and steps.** The steps come from the protocol and the mappings: A follows the expected sequence, and B swaps the two states of the signature rule.
+- **Ring events only.** Every step is bound to a Ring history event; nothing falls back to a status probe. Only an event that started after the step was shown counts, so a test simulation played just before cannot become the Arrival.
+- **Deadlines.** It prints the time limits that apply, for example "Staging must start before 14:07:00 UTC (TEMP-01: within 7 min of Arrival)".
+- **One delivery at a time.** It refuses to start B while A is still open.
+- **Resuming.** If no event arrives after three waits, or the token expires, it stops without sending anything for that step. Run the same command again (with a new token if needed) and it resumes where it stopped.
+
+Single steps can still be captured with `capture --source … --zone … --session … --require-event`, which applies the same lane checks. If no event appears, run `pnpm tsx scripts/ring-spike.ts history --device <id>` right after a simulation to see what Ring lists.
 
 | Step | Simulation | `--zone` | Delivery A | Delivery B |
 |---|---|---|---|---|
@@ -50,7 +60,7 @@ For a recording, add `--require-event`. Each step must then print `[ok] Ring his
 - **Time limit:** stay within 7 minutes between Arrival and Staging (TEMP-01).
 - **Hero screen:** the checklist follows the session. Delivery A fills in, then Delivery B appears next to it.
 - **Fallback:** every capture is saved to `fixtures/ring/captures/<session>.jsonl`, which becomes the level 2 replay.
-- **Start over:** press **Clear results**, delete the session file, and capture the delivery again with new simulations. Old Ring events are never reused: the command skips events another session already captured and events that ended more than 3 minutes ago.
+- **Start over:** press **Clear results** (or restart `pnpm demo`), delete the session file (`fixtures/ring/captures/demo-a.jsonl` or `demo-b.jsonl`), and run the delivery again. Old Ring events are never reused.
 
 ## 0:00–0:12: the Obvious Magic (works muted)
 

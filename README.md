@@ -137,7 +137,8 @@ docs/                   evaluation, safety, privacy, claims, build notes, fricti
 | `pnpm pwps validate <file>` | Validate a PWPS protocol (`inspect`, `hash`, `canonicalize`, `compile` and `eval` are also available) |
 | `pnpm replay --scenario <id>` | Replay a test fixture headlessly, or against a deployment with `--remote` |
 | `pnpm replay --captures <file.jsonl>` | Ring-derived replay of a saved Ring Playground session |
-| `pnpm tsx scripts/ring-spike.ts discover \| capture …` | Ring Source Spike: inspect the Ring API and capture Playground simulations |
+| `pnpm tsx scripts/ring-spike.ts discover \| history \| capture …` | Ring Source Spike: inspect the Ring API and its event history, capture one Playground simulation |
+| `pnpm tsx scripts/ring-spike.ts run --device <id> --post <url> --delivery A\|B` | Live delivery, guided: says which Playground simulation to click for each step and ends with SEQSEAL's verdict |
 | `pnpm sign-webhook --url … --secret …` | Send a correctly signed Ring-shaped webhook to a SEQSEAL endpoint |
 | `pnpm build:lambdas` | Bundle the 13 Lambda functions |
 | `pnpm verify` | Everything CI runs: lint, typecheck, tests, benchmark gate, protocol validation, builds, Terraform parse |
