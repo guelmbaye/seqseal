@@ -16,7 +16,7 @@ pnpm build && pnpm --filter @seqseal/web start      # or `pnpm demo`
    | Level | What runs | Label shown |
    |---|---|---|
    | 1 (preferred) | Live Ring Developer Playground captures (`scripts/ring-spike.ts capture … --post http://localhost:3000`) | Ring Developer Playground |
-   | 2 | A saved Playground session replayed through the normal pipeline (Monitor, or `pnpm replay --captures …`) | Ring-derived replay |
+   | 2 | A saved Playground session replayed through the normal pipeline (Monitor, or `pnpm replay --captures …`). The repository ships the live run of 2026-10-19: `live-2026-10-19-a` and `live-2026-10-19-b` | Ring-derived replay |
    | 3 | Test fixtures through the normal pipeline (what the repository ships) | Test fixture (Ring-shaped replay) |
 
    Never call level 2 or level 3 "live". Never say "real device" for Playground sources.

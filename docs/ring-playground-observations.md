@@ -218,5 +218,9 @@ What this run establishes:
 - **Waiting.** Each step waited about 30 s, which is the clip length plus the listing delay.
 - **Network.** Two history polls failed with a network error ("fetch failed"). The next poll succeeded, and no step was lost.
 
-The session files `fixtures/ring/captures/demo-a.jsonl` and `demo-b.jsonl` stay on the developer's machine until reviewed. They hold the device id, the event ids and times, and the Ring request ids, with no token. Once committed, they make the level-2 replay (`pnpm replay --captures …`) a replay of real Ring events.
+The two session files were reviewed and committed as `fixtures/ring/captures/live-2026-10-19-a.jsonl` and `live-2026-10-19-b.jsonl`.
+
+- **Content.** They hold the Playground device id, the Ring event ids and times, the Ring request ids, and each Ring history item as returned. They hold no token and no account data.
+- **Replay.** `pnpm replay --captures` on each file gives the same results as the live run: A SEALED → RELEASE, and B DEVIATED → HOLD with "STORAGE occurred 54 s before required STAGING". `tests/ring-live-sessions.spec.ts` pins both results on this real data.
+- **In the web app.** The Monitor page lists both sessions and replays them as Ring-derived replay.
 
