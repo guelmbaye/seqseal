@@ -398,7 +398,7 @@ if (cmd === "discover") {
   }
 
   // 1. Ground the capture in the Ring history event the simulation produced.
-  // A Vehicle simulation lasts ~40 s and its event is listed at about its end: 90 s leaves room
+  // The longest clip (Motion) lasts ~40 s and its event is listed at about its end: 90 s leaves room
   // for clicking the simulation just after starting this command.
   const waitSeconds = Math.max(0, Number(arg("wait") ?? 90));
   // A simulation's event shows up within about 30 s of its end (observed 2026-10-18). Anything much
@@ -445,7 +445,7 @@ if (cmd === "discover") {
           `    Ring listed ${lastHistory?.items.length ?? 0} event(s) on ${lastHistory?.pages.length ?? 0} page(s)` +
           `${lastHistory?.newest ? `; newest ${lastHistory.newest.event_id.slice(-12)} started ${hhmmss(lastHistory.newest.occurred_at)} UTC` : ""}.` +
           ` Details: pnpm tsx scripts/ring-spike.ts history --device <id>\n` +
-          "    Ring lists a simulation's event at about the end of its video (Package and Motion ~22 s, Vehicle ~40 s).\n" +
+          "    Ring lists a simulation's event at about the end of its video (Vehicle ~22 s, Package ~32 s, Motion ~40 s).\n" +
           "    Click the simulation in the Playground first, then run this command; it waits for the event.\n" +
           (requireEvent
             ? "    --require-event is set: nothing was sent and nothing was saved. Click the simulation again, then rerun this command."

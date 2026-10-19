@@ -109,21 +109,19 @@ Captures bound to a Ring event:
 What this establishes:
 
 - **Timing.** The event is listed at about the end of the simulation. The 26–32 s measured at 16:22 included the time before the command was started.
-- **Duration.** Each simulation is a fixed-length clip: 21.76 s and 39.71 s here, and once 31.7 s. Vehicle lasted 39.71 s in this session, but the VEHICLE events at 16:21–16:22 lasted 21.76 s. So the duration does not identify the source either (FL-006).
-- **Order of operations.** Click the simulation first, then run the capture: it waits for the event. Started the other way round, a 40 s Vehicle clip can end after a 60 s wait (it was found after 58 s at 17:50). The default wait is now 90 s.
+- **Duration.** Each simulation is a fixed-length clip: 21.76 s and 39.71 s here, and once 31.7 s. The guided run of 2026-10-19 (§7) gives Vehicle 21.76 s, Package 31.7 s and Motion 39.71 s. So the sources declared in this table did not match the clips actually played: the commands were run while other simulations were playing. The guided command now prevents this.
+- **Order of operations.** Click the simulation first, then run the capture: it waits for the event. Started the other way round, a 40 s clip can end after a 60 s wait (one was found after 58 s at 17:50). The default wait is now 90 s.
 - **Latency.** History calls took up to 9.8 s, and three were cut off by the client's 10 s timeout (FL-007).
 
 The six captures run between 17:40 and 17:48 found no new event, because no simulation was played during their wait. `--require-event` refused them, and nothing was sent.
-
-Still to observe: the PACKAGE and MOTION events (type, `cv_detections`).
 
 ## 4. Simulated sources (Package, Vehicle, Motion)
 
 | Source | API calls made | HTTP status | Request id | What the response contains |
 |---|---|---|---|---|
-| PACKAGE | | | | |
-| VEHICLE | `GET /v1/history/devices/{id}/events` | 200 | `a38ea6fb-…`, `3ac0abbb-…` | one `history-events` item per simulation; `event_type: on_demand`; `cv_detections` empty |
-| MOTION | | | | |
+| PACKAGE | `GET /v1/history/devices/{id}/events` | 200 | `066e2403-…`, `f77efeeb-…` (§7) | one `history-events` item per simulation; `event_type: on_demand`; `cv_detections` empty; clip 31.7 s |
+| VEHICLE | `GET /v1/history/devices/{id}/events` | 200 | `a38ea6fb-…`, `3ac0abbb-…`, `f8854f29-…` (§7) | one `history-events` item per simulation; `event_type: on_demand`; `cv_detections` empty; clip 21.76 s |
+| MOTION | `GET /v1/history/devices/{id}/events` | 200 | `8406bb89-…`, `961e4166-…` (§7) | one `history-events` item per simulation; `event_type: on_demand`; `cv_detections` empty; clip 39.71 s |
 
 ## 5. Consequences for SEQSEAL configuration
 
