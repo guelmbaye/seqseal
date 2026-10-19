@@ -108,6 +108,11 @@ async function attempt<T>(label: string, fn: () => Promise<{ data: T }>): Promis
     stopOnAuthError(err, label);
     if (err instanceof RingApiError) console.log(`  ${FAIL} ${label}: HTTP ${err.status} ${err.body.slice(0, 200)}`);
     else if (err instanceof Error && err.name === "AbortError") console.log(`  ! ${label}: Ring did not answer within 25 s; asking again.`);
+    else if (err instanceof TypeError && err.message === "fetch failed") {
+      // A dropped connection on one poll (seen twice in the 2026-10-19 live run): the next poll retries.
+      const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+      console.log(`  ! ${label}: network error (${cause?.code ?? cause?.message ?? "connection failed"}); asking again.`);
+    }
     else console.log(`  ${FAIL} ${label}: ${String(err)}`);
     return undefined;
   }
@@ -588,7 +593,8 @@ if (cmd === "discover") {
     let found: { e: NonNullable<ReturnType<typeof latestHistoryEvent>>; h: Awaited<ReturnType<typeof readHistory>> } | undefined;
     for (let attemptNo = 1; !found; attemptNo++) {
       const deadline = Date.now() + perAttemptS * 1000;
-      let lastNote = Date.now();
+      // Clips last 22-40 s and their event is listed at the end: nudge only after 60 s, then every 30 s.
+      let lastNote = Date.now() + 30_000;
       while (!found && Date.now() < deadline) {
         const h = await readHistory(device);
         const e = h.newest;

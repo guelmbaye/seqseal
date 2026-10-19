@@ -36,6 +36,8 @@ pnpm demo                      # http://localhost:3000, the full pipeline runs i
 
 The demo data is labelled **Test fixture (Ring-shaped replay)** everywhere it appears. Live Ring Playground captures show **Ring Developer Playground**, and saved Ring captures replayed later show **Ring-derived replay**. See [docs/RING_INTEGRATION.md](docs/RING_INTEGRATION.md).
 
+On 2026-10-19, both deliveries also ran live through the Ring Developer Playground. Each of their ten steps is a Ring history event, and `ring-spike.ts run --delivery A|B` captured them. A was released, and B was held on ORDER-02 (Storage 54 s before Staging). The footage is simulated by the Playground, and the operator declares each step's source and zone. Details are in [docs/ring-playground-observations.md](docs/ring-playground-observations.md) §7.
+
 Without a browser:
 
 ```bash

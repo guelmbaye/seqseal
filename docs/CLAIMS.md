@@ -10,6 +10,7 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 | Claim | Evidence | Where measured | Safe wording |
 |---|---|---|---|
 | Every box is checked, Release is still locked | the checklist screen; `lib/checklist.ts` derives rows from accepted evidence and the button from the applied `ReceivingWorkflow` state | UI on `pnpm demo`; `tests/pipeline.e2e.test.ts` (hero) | "Delivery B shows every receiving step checked, and Release delivery stays locked because ORDER-02 failed: Storage 14:03 came before Staging 14:06." |
+| Live Ring Developer Playground deliveries | `ring-spike.ts run --delivery A` and `--delivery B`, 2026-10-19 14:46–14:55 UTC: ten steps, each bound to a Ring history event (ids, times and request ids in [ring-playground-observations.md](ring-playground-observations.md) §7) | SEQSEAL's own result: A SEALED → RELEASE, B DEVIATED → HOLD (ORDER-02) | "Delivery A and Delivery B ran live through the Ring Developer Playground. Every step is a Ring history event; A was released and B was held because Storage came 54 s before Staging." Say that the footage is simulated by the Playground and that the source and zone of each step are declared by the operator. |
 | Same events, different order, different action | `tests/winning-moment.spec.ts`, benchmark B01/B02 | Vitest, `pnpm benchmark` | "Two deliveries with the same Ring-shaped events, protocol, policy, mappings and engine version differ only in order. One is SEALED and released; the other fails ORDER-02 and is held." |
 | No unsupported benchmark scenario was released | `benchmarks/results/latest.md` | `pnpm benchmark` | "0 false RELEASE across the 21 unsupported scenarios of our 32-scenario benchmark." |
 | No unsupported scenario was sealed | same | same | "0 false SEALED across 21 unsupported benchmark scenarios." |
@@ -29,13 +30,12 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 
 | Item | Status | What is needed before claiming it |
 |---|---|---|
-| Live Ring Developer Playground captures | Partly demonstrated on 2026-10-18 (details in [ring-playground-observations.md](ring-playground-observations.md)).<br>• 16:21–16:23 UTC: two VEHICLE captures were bound to real Ring history events and accepted by a running SEQSEAL.<br>• 16:55–17:09 UTC: Deliveries A and B ran end to end, live, and ended Released and Held. No simulation was played during those captures, so each step rests on a Ring status call (HTTP 200, request id), the operator-declared source and zone, and the capture time.<br>• 17:37–17:51 UTC: four more captures were bound to Ring events (VEHICLE, PACKAGE, VEHICLE, MOTION), but not as one complete delivery | A and B with every step bound to a Ring history event (`capture --require-event`). Until then, say: "A and B ran live through the Ring Developer Playground API; SEQSEAL also ingests Ring history events". Do not say Ring's events prove the order of A and B |
-| Ring-derived replay | profile, replay path and UI implemented, tested with constructed captures | a session file captured from the real Playground (`fixtures/ring/captures/*.jsonl`) |
+| Ring-derived replay | profile, replay path and UI implemented, tested with constructed captures. Real session files exist since 2026-10-19 (`demo-a.jsonl`, `demo-b.jsonl`), not yet committed | commit the reviewed session files, then run `pnpm replay --captures fixtures/ring/captures/demo-a.jsonl` and `demo-b.jsonl` and check A released and B held |
 | Ring production webhooks | endpoint, HMAC, envelope parsing implemented | a registered Ring app delivering to `webhook_url` |
 | AWS deployment | Terraform, bundles and handlers implemented; HCL parsed, bundles invoked locally | `terraform apply` in an AWS account, then an end-to-end run |
 | Bedrock evidence interpretation | Converse with forced tool use implemented behind `ENABLE_BEDROCK_EVIDENCE` | an enabled model and a measured run; the benchmark uses a deterministic mock |
 
-Until those steps are done, the demo source label reads **Test fixture (Ring-shaped replay)**. It must not be described as live Ring data.
+The shipped demo (**Run deliveries A and B again**) still uses test fixtures, labelled **Test fixture (Ring-shaped replay)**: it must not be described as live Ring data. Live Playground captures carry the **Ring Developer Playground** label.
 
 Source wording (honesty lock):
 
@@ -65,7 +65,8 @@ Source wording (honesty lock):
 - real-world accuracy;
 - latency figures (not measured);
 - that HOLD physically stops anything (it blocks the application-level receiving workflow only);
-- "first camera workflow system".
+- "first camera workflow system";
+- that Ring detected or classified a vehicle, a package or motion in Playground sessions. Ring's history events carry no class (`cv_detections` is empty, `event_type` is `on_demand`), so the source and zone of each Playground step are declared by the operator (FRICTION_LOG FL-006).
 
 Product boundaries: SEQSEAL is not a WMS, ERP, generic video analytics, employee surveillance, a biometric system, an access-control controller, a universal SOP engine, process mining or an AI agent platform.
 

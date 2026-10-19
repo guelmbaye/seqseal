@@ -105,7 +105,7 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Impact | Ring proves that a simulation ran on the device, and when. It does not prove which one ran. The source (VEHICLE, PACKAGE, MOTION) must be declared by the operator with `--source`, and the evidence drawer says so |
 | Workaround | None needed. The operator-declared source and zone were already the design (BUILD_NOTES BN-003) |
 | Suggested improvement | Populate `cv_detections` for Playground simulations with the class that was shown (vehicle, package, person), as a real camera would |
-| Status | Open. Observed for VEHICLE only; PACKAGE and MOTION to confirm |
+| Status | Open. Confirmed for VEHICLE, PACKAGE and MOTION: every event seen, including the ten of the 2026-10-19 live run, has `event_type: on_demand` and an empty `cv_detections`. Each simulation has its own clip length (Vehicle 21.76 s, Package 31.7 s, Motion 39.71 s), which identifies the Playground footage but is not a Ring classification |
 
 ## FL-007 — Event history calls sometimes take 10 s or more
 

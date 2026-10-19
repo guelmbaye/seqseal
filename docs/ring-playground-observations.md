@@ -2,12 +2,7 @@
 
 This sheet records what the live Ring API returns for the account used in the demo. It grounds the bindings and mappings in observed data instead of assumptions.
 
-**Status (2026-10-18, 17:55 UTC):**
-
-- discovery done;
-- Ring history events captured for VEHICLE, PACKAGE and MOTION (16:21–16:23 and 17:37–17:51 UTC);
-- every simulation played from 17:35 on produced an event;
-- a full delivery with every step bound to a Ring event is still to capture. Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
+**Status (2026-10-19, 14:55 UTC):** Deliveries A and B were captured live through the Ring Developer Playground, with every one of their ten steps bound to a Ring history event. A was released; B was held on ORDER-02 (§7). Fill the rest from `fixtures/ring/spike-<timestamp>/` and the capture output, never from documentation. To run the discovery:
 
 ```bash
 export RING_PLAYGROUND_TOKEN=…        # one-click Playground token, never written to disk
@@ -178,3 +173,50 @@ Sessions `demo-a` and `demo-b` (17:37–17:51 UTC, `--require-event`):
 - SEQSEAL knows lanes, not sessions, so all four steps formed one delivery: Arrival 17:37:18, then Staging 11.9 min later. The verdict was DEVIATED → HOLD (TEMP-01, limit 7 min); Storage was missing.
 
 The capture command now checks the open delivery on the lane before calling Ring (BUILD_NOTES BN-026). These sessions are discarded.
+
+## 7. Live deliveries A and B, every step bound to a Ring event (2026-10-19)
+
+Command: `ring-spike.ts run --delivery A`, then `--delivery B` (BUILD_NOTES BN-027), against `pnpm demo` on the developer's machine, with one token valid until 15:14 UTC. For each step the command named the simulation to click, and the operator clicked it once in the Playground.
+
+**Delivery A** (session `demo-a`, EXEC-0001):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…YDQYNXNM7A7H` | 14:46:08–14:46:29 | 21.8 s | `f8854f29-f8e5-4803-b89e-b83105d50bc2` |
+| Staging | PACKAGE → staging | `…YOIENPHGWEUD` | 14:46:57–14:47:29 | 31.8 s | `066e2403-312e-41d4-8e14-9282cac50d98` |
+| Storage | MOTION → storage-transition | `…F6VMWGIHV75G` | 14:47:52–14:48:32 | 39.7 s | `8406bb89-3edb-4ad2-a40e-5f44c77a109a` |
+| Departure | VEHICLE → receiving-exit | `…T5JBMPDLLXWR` | 14:48:49–14:49:11 | 21.8 s | `47c9a7b7-2291-4969-8333-0dbc620c7cc3` |
+| Clear | MOTION → receiving-exit | `…3TO76GZSITEG` | 14:49:37–14:50:17 | 39.7 s | `c980a8c3-0f4f-4582-b5fb-a92d18aeffa2` |
+
+Result read from SEQSEAL: **SEALED → RELEASE, workflow RELEASED**. "All mandatory protocol constraints are satisfied by accepted evidence."
+
+**Delivery B** (session `demo-b`, EXEC-0002):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…XAMWVWS4XCX4` | 14:50:40–14:51:01 | 21.8 s | `f489a665-0219-4771-8ee8-50c7648ba738` |
+| Storage | MOTION → storage-transition | `…DZBGWTXKRAMT` | 14:51:16–14:51:56 | 39.7 s | `961e4166-47fd-4052-86f4-a64f6f367e69` |
+| Staging | PACKAGE → staging | `…4SPHYWNJPAK3` | 14:52:10–14:52:41 | 31.7 s | `f77efeeb-206f-46ea-ae1f-f6e660bd1801` |
+| Departure | VEHICLE → receiving-exit | `…PCEZYH2FBGYB` | 14:52:54–14:53:16 | 21.8 s | `4203341b-2f29-43a0-a340-f6abf5c4c30c` |
+| Clear | MOTION → receiving-exit | `…UXOMIJCBSFA3` | 14:54:38–14:55:18 | 39.7 s | `bbef03d1-01b5-4118-bf58-ba14a58def0b` |
+
+Result read from SEQSEAL: **DEVIATED → HOLD, workflow HELD**. "STORAGE occurred 54 s before required STAGING. (ORDER-02)"
+
+What this run establishes:
+
+- **The Winning Moment holds on live Ring events.** The two deliveries have the same five Ring-observed steps, protocol, policy and mappings. Only the order differs, and so do the verdict and the action.
+- **Clip lengths.** In this run, where every click followed a printed instruction, each simulation had its own fixed clip length:
+
+  | Simulation | Clip length | Clicks |
+  |---|---|---|
+  | Vehicle | 21.76 s | 4 |
+  | Package | 31.7 s | 2 |
+  | Motion | 39.71 s | 4 |
+
+  This matches the 16:21–16:22 VEHICLE events of 2026-10-18. It also suggests that the three test clicks of 17:35–17:37 that day were Vehicle, Package and Motion, and that the 17:39 capture declared as VEHICLE actually took the Motion test clip. The guided command now ignores events that started before the step was shown.
+- **The clip length is a fingerprint, not a classification.** It identifies the Playground footage, not what Ring detected. `cv_detections` stayed empty for every event seen so far, whatever the simulation (FRICTION_LOG FL-006).
+- **Waiting.** Each step waited about 30 s, which is the clip length plus the listing delay.
+- **Network.** Two history polls failed with a network error ("fetch failed"). The next poll succeeded, and no step was lost.
+
+The session files `fixtures/ring/captures/demo-a.jsonl` and `demo-b.jsonl` stay on the developer's machine until reviewed. They hold the device id, the event ids and times, and the Ring request ids, with no token. Once committed, they make the level-2 replay (`pnpm replay --captures …`) a replay of real Ring events.
+
