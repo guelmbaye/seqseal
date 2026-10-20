@@ -65,8 +65,8 @@ locals {
     "ring-playground-adapter" = {
       dynamodb       = [{ tables = ["idempotency", "evidence", "executions"], actions = local.ddb_rw }]
       put_events     = true
-      secrets        = ["ring_webhook_signing_secret", "ring_api_token", "demo_token"]
-      s3             = []
+      secrets        = ["ring_api_token", "demo_token"]
+      s3             = [{ actions = ["s3:PutObject"], prefix = "media/*" }] # snapshot captures
       bedrock_invoke = false
       deny_bedrock   = false
     }
@@ -89,8 +89,8 @@ locals {
     "media-interpreter" = {
       dynamodb       = [{ tables = ["evidence", "executions", "config"], actions = local.ddb_rw_delete }]
       put_events     = true
-      secrets        = []
-      s3             = [{ actions = ["s3:GetObject"], prefix = "media/*" }]
+      secrets        = ["ring_api_token"] # fresh Ring snapshot when a webhook observation needs media
+      s3             = [{ actions = ["s3:GetObject", "s3:PutObject"], prefix = "media/*" }]
       bedrock_invoke = true
       deny_bedrock   = false
     }
@@ -125,6 +125,7 @@ locals {
       dynamodb = [
         { tables = ["executions"], actions = local.ddb_rw },
         { tables = ["evidence"], actions = local.ddb_read },
+        { tables = ["config"], actions = local.ddb_read }, # source config the receipt cites
       ]
       put_events     = true
       secrets        = []
@@ -152,7 +153,7 @@ locals {
       dynamodb       = [{ tables = local.all_table_keys, actions = local.ddb_rw_delete }]
       put_events     = true
       secrets        = ["demo_token"]
-      s3             = []
+      s3             = [{ actions = ["s3:PutObject"], prefix = "evaluations/*" }] # finalize evaluates inline
       bedrock_invoke = false
       deny_bedrock   = false
     }
@@ -163,7 +164,7 @@ locals {
       ]
       put_events     = true
       secrets        = []
-      s3             = []
+      s3             = [{ actions = ["s3:PutObject"], prefix = "evaluations/*" }] # finalize evaluates inline
       bedrock_invoke = false
       deny_bedrock   = false
     }

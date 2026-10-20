@@ -94,7 +94,14 @@ Useful variables: `aws_region`, `log_retention_days` (14), `finalization_grace_s
 ## 3. Set the secret values
 
 Terraform creates the secret **containers** only — values never enter Terraform
-state. After the first apply:
+state. Set all three right after the first apply. Until a secret has a value, the endpoints
+that need it refuse requests (401 or 503) instead of crashing:
+
+- **ring-webhook-signing-secret**: from the Ring app settings. If you only use the Playground (no webhooks), set a random value.
+- **ring-api-token**: only used for server-side snapshot captures. A Playground token (valid for 30 minutes) or any placeholder will do.
+- **demo-token**: a random value. Send it as `x-seqseal-demo-token` (`--token` in the scripts).
+
+bash:
 
 ```bash
 P=seqseal-dev   # or seqseal-demo
@@ -112,6 +119,19 @@ aws secretsmanager put-secret-value --region $REGION \
 aws secretsmanager put-secret-value --region $REGION \
   --secret-id "$P/demo-token" --secret-string "$(openssl rand -hex 32)"
 ```
+
+PowerShell (Windows):
+
+```powershell
+$P = "seqseal-demo"; $R = "us-east-1"
+function New-Secret { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString("x2") }) }
+$DEMO = New-Secret
+aws secretsmanager put-secret-value --region $R --secret-id "$P/ring-webhook-signing-secret" --secret-string (New-Secret)
+aws secretsmanager put-secret-value --region $R --secret-id "$P/ring-api-token" --secret-string "placeholder-not-used"
+aws secretsmanager put-secret-value --region $R --secret-id "$P/demo-token" --secret-string $DEMO
+```
+
+Keep `$DEMO` for the checks below. It is never written to disk.
 
 The ARNs are also available as `terraform output secret_arns`.
 
@@ -134,6 +154,36 @@ The ARNs are also available as `terraform output secret_arns`.
 The stage throttles at burst 50 / rate 25 rps. CORS allows `GET, POST, OPTIONS` and
 headers `content-type`, `x-seqseal-demo-token`.
 
+## 5. Check the deployment end to end
+
+PowerShell, from the repository root, with `$DEMO` from step 3:
+
+```powershell
+$API = terraform -chdir=infrastructure/terraform/environments/demo output -raw api_endpoint
+Invoke-RestMethod "$API/api/status"                                   # backend aws:demo, protocol IDP-01@1.0.0
+
+# The live Ring sessions of 2026-10-19, replayed on AWS (Ring-derived replay)
+pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote $API --token $DEMO
+pnpm replay --captures fixtures/ring/captures/live-2026-10-19-b.jsonl --remote $API --token $DEMO
+Start-Sleep 20
+Invoke-RestMethod "$API/api/executions" | Select-Object execution_id, verdict, action, workflow_status
+# expected: one SEALED / RELEASE / RELEASED and one DEVIATED / HOLD / HELD
+
+# The web console on the AWS backend
+$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API; $env:SEQSEAL_DEMO_TOKEN = $DEMO
+pnpm --filter @seqseal/web start                                       # http://localhost:3000
+```
+
+Then check:
+
+- **Monitoring.** In CloudWatch, the `<prefix>-source-to-action` dashboard shows invocations and no errors, and every DLQ alarm is OK.
+- **Live run.** A live run can target AWS directly: `pnpm tsx scripts\ring-spike.ts run --device $D --post $API --token $DEMO --delivery A`.
+- **What differs on AWS.**
+  - **Clear results** only closes active demo executions; history stays.
+  - The Monitor's "Replay Ring-derived session" buttons are not offered: use `pnpm replay --remote`.
+  - Execution and receipt numbers continue from earlier runs.
+- **Problems.** Record every real difficulty in `docs/FRICTION_LOG.md`.
+
 ## IAM authority table
 
 > **The Sequence Evaluator cannot invoke Bedrock: verdict authority is deterministic
@@ -145,18 +195,18 @@ The verdict, decision, action and receipt functions all carry an explicit
 | Function | DynamoDB (tables) | Other |
 |---|---|---|
 | ring-ingest | Get/Put/Update/Query on idempotency, evidence, executions | PutEvents; GetSecretValue ring-webhook-signing-secret |
-| ring-playground-adapter | Get/Put/Update/Query on idempotency, evidence, executions | PutEvents; GetSecretValue ring-webhook-signing-secret, ring-api-token, demo-token |
+| ring-playground-adapter | Get/Put/Update/Query on idempotency, evidence, executions | PutEvents; GetSecretValue ring-api-token, demo-token; s3:PutObject `media/*` (snapshot captures) |
 | observation-normalizer | Get/Put/Update/Query on idempotency, evidence, executions | PutEvents |
 | evidence-resolver | Get/Put/Update/Query/Delete on evidence, executions, config | PutEvents |
-| media-interpreter | Get/Put/Update/Query/Delete on evidence, executions, config | PutEvents; s3:GetObject `media/*`; bedrock:InvokeModel(+WithResponseStream) on foundation-model/* and inference-profile/* **only when `enable_bedrock_evidence = true`** |
+| media-interpreter | Get/Put/Update/Query/Delete on evidence, executions, config | PutEvents; GetSecretValue ring-api-token; s3:GetObject and s3:PutObject `media/*`; bedrock:InvokeModel(+WithResponseStream) on foundation-model/* and inference-profile/* **only when `enable_bedrock_evidence = true`** |
 | sequence-evaluator | Get/Put/Update/Query/Delete on executions, config; Get/Query on evidence | PutEvents; s3:PutObject `evaluations/*`; **Deny bedrock:\*** |
 | policy-evaluator | Get/Put/Query on executions | PutEvents; **Deny bedrock:\*** |
 | operational-gate | Get/Put/Update/Query on executions | PutEvents; **Deny bedrock:\*** |
-| receipt-generator | Get/Put/Update/Query on executions; Get/Query on evidence | PutEvents; s3:PutObject `receipts/*`; **Deny bedrock:\*** |
+| receipt-generator | Get/Put/Update/Query on executions; Get/Query on evidence, config | PutEvents; s3:PutObject `receipts/*`; **Deny bedrock:\*** |
 | read-api | Get/Query on all four tables | s3:GetObject `receipts/*` |
 | review-api | Get/Put/Update/Query on executions, evidence, config | PutEvents; GetSecretValue demo-token |
-| demo-orchestrator | Get/Put/Update/Query/Delete on all four tables | PutEvents; GetSecretValue demo-token |
-| execution-sweeper | Get/Put/Update/Query/Delete on executions, config; Get/Query on evidence | PutEvents |
+| demo-orchestrator | Get/Put/Update/Query/Delete on all four tables | PutEvents; GetSecretValue demo-token; s3:PutObject `evaluations/*` (finalize evaluates inline) |
+| execution-sweeper | Get/Put/Update/Query/Delete on executions, config; Get/Query on evidence | PutEvents; s3:PutObject `evaluations/*` (finalize evaluates inline) |
 
 Every role also gets the following:
 
@@ -170,6 +220,8 @@ Every role also gets the following:
 - `events:PutEvents` covers only the SEQSEAL bus.
 
 The source of truth is `local.authority` in `modules/iam/main.tf`.
+
+**Checked before deploying.** `packages/aws/test/aws-wiring.test.ts` reads these Terraform files as written: the routes, the queue consumers and this table. It runs every demo flow on the real pipeline, with each event delivered the way EventBridge and SQS deliver it. Every DynamoDB action, S3 object, PutEvents and secret is checked against the grants of the function that uses it. A missing grant there would be an AccessDenied on AWS. Only `ring-ingest` reads the webhook signing secret (`awsRuntime(…, { ringSigningSecret: true })`).
 
 ## Event routing
 

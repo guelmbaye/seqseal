@@ -257,3 +257,28 @@ Otherwise it says which delivery the step is added to. `--force` overrides the c
 
 **Not done.** Selecting the source through an undocumented Playground call. The Ring API does not document one, and the demo must not depend on it.
 
+## BN-028 — The AWS wiring is checked before `terraform apply`
+
+**Found (2026-10-20, before any deployment).** Reading the Lambda runtime against the IAM table showed that every function loaded the Ring webhook signing secret when it started, but only `ring-ingest` and `ring-playground-adapter` may read it. On AWS, the other 11 functions would have failed with AccessDenied on their first invocation, so nothing past ingestion would have run.
+
+A new test, run against the Terraform as written, then found five more gaps:
+
+- `receipt-generator` reads the `config` table;
+- `demo-orchestrator` and `execution-sweeper` store an evaluation snapshot (`evaluations/*`) when they finalize;
+- `media-interpreter` reads the Ring token and stores media (`media/*`) once Bedrock is enabled;
+- `ring-playground-adapter` stores snapshots (`media/*`).
+
+**Decision.**
+
+- `awsRuntime(service, { ringSigningSecret: true })` is the only way to load the signing secret, and only `ring-ingest` uses it. The playground adapter loses that grant.
+- The demo controls replay test fixtures only and never sign traffic as a Ring webhook.
+- A secret that has no value yet reads as "not configured": its endpoints answer 401 or 503 instead of crashing. Access errors are still raised.
+- The IAM table grants the five missing permissions, each with a comment saying why.
+- `packages/aws/test/aws-wiring.test.ts` parses `main.tf` (routes, queue consumers) and `modules/iam/main.tf` (authority), and checks the following:
+  - every routed event is accepted by its consumer, and every accepted event is routed;
+  - each secret is granted to exactly the functions that read it;
+  - every demo flow runs with its events delivered the AWS way, and needs no permission the Terraform does not grant. The flows are the live and Ring-derived Playground captures, the fixtures, the review, a signed webhook, the sweeper and the read API.
+- `packages/aws/test/secrets.test.ts` pins the secret behaviour.
+
+**Why.** This session cannot deploy, and a first deployment is the most expensive place to discover an IAM gap: the hackathon deadline is 2026-10-23. Running the pipeline against the Terraform's own grants turns those gaps into failing tests.
+

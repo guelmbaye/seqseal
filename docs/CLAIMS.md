@@ -32,7 +32,7 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 | Item | Status | What is needed before claiming it |
 |---|---|---|
 | Ring production webhooks | endpoint, HMAC, envelope parsing implemented | a registered Ring app delivering to `webhook_url` |
-| AWS deployment | Terraform, bundles and handlers implemented; HCL parsed, bundles invoked locally | `terraform apply` in an AWS account, then an end-to-end run |
+| AWS deployment | Terraform, bundles and handlers implemented. HCL parsed, bundles built, and routing, IAM grants and secrets checked against the real pipeline (`packages/aws/test/aws-wiring.test.ts`) | `terraform apply` in an AWS account, then the end-to-end check of `infrastructure/terraform/README.md` §5 |
 | Bedrock evidence interpretation | Converse with forced tool use implemented behind `ENABLE_BEDROCK_EVIDENCE` | an enabled model and a measured run; the benchmark uses a deterministic mock |
 
 The shipped demo (**Run deliveries A and B again**) still uses test fixtures, labelled **Test fixture (Ring-shaped replay)**: it must not be described as live Ring data. Live Playground captures carry the **Ring Developer Playground** label.

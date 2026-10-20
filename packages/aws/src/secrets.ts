@@ -11,8 +11,17 @@ export async function getSecret(arn: string | undefined): Promise<string> {
   const hit = cache.get(arn);
   if (hit && Date.now() - hit.at < TTL_MS) return hit.value;
   client ??= new SecretsManagerClient({});
-  const r = await client.send(new GetSecretValueCommand({ SecretId: arn }));
-  const value = r.SecretString ?? "";
+  let value = "";
+  try {
+    const r = await client.send(new GetSecretValueCommand({ SecretId: arn }));
+    value = r.SecretString ?? "";
+  } catch (err) {
+    // Terraform creates the secret containers without a value. Until `put-secret-value` runs,
+    // the secret reads as "not configured": callers fail closed (401/503) instead of crashing.
+    // Any other error (AccessDenied above all) is a deployment fault and is rethrown.
+    if ((err as { name?: string }).name !== "ResourceNotFoundException") throw err;
+    console.warn(JSON.stringify({ level: "warn", msg: "secret_not_set", secret: arn.split(":").pop() }));
+  }
   cache.set(arn, { value, at: Date.now() });
   return value;
 }

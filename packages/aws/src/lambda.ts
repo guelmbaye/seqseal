@@ -75,7 +75,15 @@ function interpreterFor(store: S3ArtifactStore): EvidenceInterpreter {
   return process.env.DEMO_MODE === "true" ? new MockEvidenceInterpreter() : new DisabledEvidenceInterpreter();
 }
 
-export async function awsRuntime(service: string): Promise<AwsRuntime> {
+export interface AwsRuntimeOptions {
+  /**
+   * Load the Ring webhook signing secret. Only `ring-ingest` verifies webhook signatures, so
+   * only its IAM role may read that secret; every other function must leave this off.
+   */
+  ringSigningSecret?: boolean;
+}
+
+export async function awsRuntime(service: string, opts: AwsRuntimeOptions = {}): Promise<AwsRuntime> {
   config ??= loadPipelineConfig();
   artifacts ??= new S3ArtifactStore(process.env.SEQSEAL_ARTIFACT_BUCKET ?? "");
   const log = jsonLogger(service);
@@ -90,7 +98,7 @@ export async function awsRuntime(service: string): Promise<AwsRuntime> {
     isRetryable: isRetryableAwsError,
     options: {
       finalizationGraceMs: Number(process.env.FINALIZATION_GRACE_SECONDS ?? "0") * 1000,
-      ringSigningSecret: await getSecret(process.env.RING_SIGNING_SECRET_ARN),
+      ...(opts.ringSigningSecret ? { ringSigningSecret: await getSecret(process.env.RING_SIGNING_SECRET_ARN) } : {}),
     },
   });
   const readModel = new ReadModel(pipeline.store, config, {

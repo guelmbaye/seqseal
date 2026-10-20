@@ -9,22 +9,21 @@ import { randomUUID } from "node:crypto";
 import type { APIGatewayProxyEventV2, APIGatewayProxyResultV2 } from "aws-lambda";
 import { awsRuntime, json, rawBody, requireDemoToken, type AwsRuntime } from "@seqseal/aws";
 import { loadScenario } from "@seqseal/pipeline";
-import { buildReplayDeliveries, computeRingSignature, ReplayScenario } from "@seqseal/ring-adapter";
+import { buildReplayDeliveries, ReplayScenario } from "@seqseal/ring-adapter";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function run(rt: AwsRuntime, scenarioId: string, paceMs: number) {
   const scenario = ReplayScenario.parse(loadScenario(scenarioId));
+  // Demo controls replay test fixtures only. They never sign traffic as a Ring webhook, so this
+  // function needs no access to the webhook signing secret (only ring-ingest has it).
+  if (scenario.source_profile !== "FIXTURE_REPLAY") throw new Error(`demo controls replay test fixtures only (${scenarioId} is ${scenario.source_profile})`);
   const runId = `run-${randomUUID().slice(0, 8)}`;
   const replay = { run_id: runId, scenario_id: scenario.scenario_id, label: scenario.label };
   const deliveries = buildReplayDeliveries(scenario, { runId, accountId: "fixture-account" });
   const results = [];
   for (const d of deliveries.filter((x) => x.phase === "main")) {
-    const headers: Record<string, string> = {};
-    if (scenario.source_profile === "RING_WEBHOOK" || scenario.source_profile === "RING_STAGING") {
-      headers["x-signature"] = computeRingSignature(d.rawBody, rt.pipeline.options.ringSigningSecret ?? "");
-    }
-    results.push(await rt.pipeline.ingestWebhook({ rawBody: d.rawBody, headers, profile: scenario.source_profile, replay }));
+    results.push(await rt.pipeline.ingestWebhook({ rawBody: d.rawBody, profile: scenario.source_profile, replay }));
     if (paceMs) await sleep(paceMs);
   }
   let finalized: string | undefined;
@@ -59,7 +58,11 @@ export async function handler(event: APIGatewayProxyEventV2): Promise<APIGateway
   switch (action) {
     case "run":
       if (!body.scenario) return json(400, { error: "scenario required" });
-      return json(202, await run(rt, body.scenario, pace));
+      try {
+        return json(202, await run(rt, body.scenario, pace));
+      } catch (err) {
+        return json(400, { error: err instanceof Error ? err.message : String(err) });
+      }
     case "winning-moment": {
       const a = await run(rt, "correct-sequence", pace);
       const b = await run(rt, "wrong-sequence", pace);

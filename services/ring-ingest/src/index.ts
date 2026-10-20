@@ -14,7 +14,7 @@ const PROFILE = (process.env.RING_SOURCE_PROFILE ?? "RING_WEBHOOK") as SourcePro
 
 export async function handler(event: APIGatewayProxyEventV2): Promise<APIGatewayProxyResultV2> {
   const started = Date.now();
-  const rt = await awsRuntime("ring-ingest");
+  const rt = await awsRuntime("ring-ingest", { ringSigningSecret: true });
   const result = await rt.pipeline.ingestWebhook({
     rawBody: rawBody(event),
     headers: event.headers as Record<string, string | undefined>,
