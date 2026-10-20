@@ -19,16 +19,16 @@ What has actually been run, and what this script relies on:
 |---|---|---|---|---|
 | S1 | 0:00 | 12 s | Checklist page, the 12-second walkthrough | Every box is checked; why is Release locked? |
 | S2 | 0:12 | 15 s | Delivery B: **Release delivery** opened, ORDER-02 failed | Same steps, wrong order, Release locked |
-| S3 | 0:27 | 20 s | The live run: terminal, Ring Developer Playground, a box checking | Ring gives the checklist eyes |
-| S4 | 0:47 | 28 s | Verification page, then the STORAGE evidence drawer | Deterministic engine; every step leads to a Ring event |
-| S5 | 1:15 | 20 s | Monitor: DEVIATED → policy → HOLD → WorkflowHeld | Verdict and action are separate |
-| S6 | 1:35 | 20 s | Receipt SSR-0002, **Replay verification** | Receipt, replayable |
-| S7 | 1:55 | 25 s | Ambiguous evidence: Needs review, **Confirm evidence**, Unlocked | AI can propose evidence; it cannot release |
-| S8 | 2:20 | 18 s | AWS architecture and Terraform | Event-driven AWS, no Bedrock in the decision path |
-| S9 | 2:38 | 12 s | `pnpm pwps validate`, Protocol page | PWPS, open source |
-| S10 | 2:50 | 10 s | Checklist: A unlocked, B locked | A checklist that can see |
+| S3 | 0:27 | 18 s | The live run: terminal, Ring Developer Playground, a box checking | Ring gives the checklist eyes |
+| S4 | 0:45 | 26 s | Verification page, then the STORAGE evidence drawer | Deterministic engine; every step leads to a Ring event |
+| S5 | 1:11 | 18 s | Monitor: DEVIATED → policy → HOLD → WorkflowHeld | Verdict and action are separate |
+| S6 | 1:29 | 18 s | Receipt SSR-0002, **Replay verification** | Receipt, replayable |
+| S7 | 1:47 | 23 s | Ambiguous evidence: Needs review, **Confirm evidence**, Unlocked | AI can propose evidence; it cannot release |
+| S8 | 2:10 | 15 s | AWS architecture and Terraform | Event-driven AWS, no Bedrock in the decision path |
+| S9 | 2:25 | 12 s | `pnpm pwps validate`, Protocol page | PWPS, open source |
+| S10 | 2:37 | 8 s | Checklist: A unlocked, B locked | A checklist that can see |
 
-Total: 3:00. The narration is about 350 words, read at about 120 words per minute, which leaves room for pauses.
+Total: 2:45. The rules require a public video on YouTube or Vimeo, in English and **under 3 minutes**: the 15 s margin covers a title or end card. The narration is about 350 words, read at about 130 words per minute.
 
 The frames in `docs/demo/` come from the level 2 replay (label "Ring-derived replay"). At level 1 the label reads "Ring Developer Playground", and the times are those of your own run.
 
@@ -185,13 +185,13 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > Delivery B went through the same five steps as A, under the same protocol and policy. But Storage came before Staging: ORDER-02 fails, and Release stays locked. Same observations. Different sequence. Different operational action.
 
-### S3 · 0:27–0:47 · Ring gives the checklist eyes (20 s)
+### S3 · 0:27–0:45 · Ring gives the checklist eyes (18 s)
 
 **Film:** nothing new. Use the recording made during the live run (2.3), cut into three pieces. Take the Staging step of Delivery A ("click PACKAGE"):
 
 1. **About 4 s.** The terminal shows "Step 2 of 5, Staging: click PACKAGE in the Playground now", and the pointer clicks Package in the Playground.
-2. **About 8 s.** The Package clip plays in the Playground. If you speed it up, show the factor on screen, for example "×3".
-3. **About 8 s.** The terminal shows "[ok] Staging: Ring event … SEQSEAL accepted it." and the Staging box checks on the checklist. The label "Ring Developer Playground" stays visible.
+2. **About 7 s.** The Package clip plays in the Playground. If you speed it up, show the factor on screen, for example "×3".
+3. **About 7 s.** The terminal shows "[ok] Staging: Ring event … SEQSEAL accepted it." and the Staging box checks on the checklist. The label "Ring Developer Playground" stays visible.
 
 **Say** (38 words)
 
@@ -201,7 +201,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > Ring gives the checklist eyes. These deliveries were captured live from the Ring Developer Playground on October 19. Every step is a Ring history event, replayed here through the same pipeline.
 
-### S4 · 0:47–1:15 · Deterministic verification, down to the Ring event (28 s)
+### S4 · 0:45–1:11 · Deterministic verification, down to the Ring event (26 s)
 
 ![S4 verification](demo/s04-verification.jpg)
 ![S4 evidence drawer](demo/s04-evidence-drawer.jpg)
@@ -218,7 +218,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > The expected process is declared in PWPS. The engine lays the observed sequence over it and checks every rule deterministically: no model decides. ORDER-02 fails because Storage occurred fifty-four seconds before Staging. And every step leads back to its source: this one is a Ring history event, with its event ID, its Ring request ID and its start time.
 
-### S5 · 1:15–1:35 · Verdict and action are separate (20 s)
+### S5 · 1:11–1:29 · Verdict and action are separate (18 s)
 
 ![S5](demo/s05-operational-gate.jpg)
 
@@ -238,7 +238,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > Verdict and action are kept apart. The engine says DEVIATED. A separate, versioned policy maps DEVIATED to HOLD, and SEALED to RELEASE. The Operational Gate then holds the receiving workflow, with a real WorkflowHeld event, not just a label.
 
-### S6 · 1:35–1:55 · The SeqSeal Receipt (20 s)
+### S6 · 1:29–1:47 · The SeqSeal Receipt (18 s)
 
 ![S6](demo/s06-receipt.jpg)
 
@@ -252,7 +252,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > Every final decision produces a SeqSeal Receipt. It links the action to the policy, the verdict, the failed rule and the Ring evidence, each with its hash. Replay verification runs it again and finds the same verdict and the same action.
 
-### S7 · 1:55–2:20 · AI can propose evidence, not release (25 s), filmed last
+### S7 · 1:47–2:10 · AI can propose evidence, not release (23 s), filmed last
 
 ![S7 needs review](demo/s07-needs-review.jpg)
 ![S7 confirmed](demo/s07-confirmed.jpg)
@@ -285,7 +285,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 **Do not say** that Bedrock made this call. In the local demo, the interpreter is a deterministic stand-in: the **System** page reads "mock-evidence-interpreter@1 (fixture hints, no Bedrock call)".
 
-### S8 · 2:20–2:38 · AWS (18 s)
+### S8 · 2:10–2:25 · AWS (15 s)
 
 **Film**
 
@@ -301,7 +301,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > SEQSEAL runs on AWS: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
 
-### S9 · 2:38–2:50 · PWPS (12 s)
+### S9 · 2:25–2:37 · PWPS (12 s)
 
 ![S9](demo/s09-protocol.jpg)
 
@@ -322,11 +322,11 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 > And the protocol isn't hard-coded. It's written in PWPS, our open-source Physical Workflow Protocol Specification, with a validator and conformance tests.
 
-### S10 · 2:50–3:00 · Close (10 s), filmed right after S2
+### S10 · 2:37–2:45 · Close (8 s), filmed right after S2
 
 ![S10](demo/s10-close.jpg)
 
-**Film:** the **Checklist** page, with Delivery A **Unlocked** and Delivery B **Locked**. Collapse B's panel if it is open, and park the pointer outside the cards. Hold 10 s. In the edit, you can add a slow zoom on the two buttons and the SEQSEAL logo for the last 2 s.
+**Film:** the **Checklist** page, with Delivery A **Unlocked** and Delivery B **Locked**. Collapse B's panel if it is open, and park the pointer outside the cards. Hold 8 s. In the edit, you can add a slow zoom on the two buttons and the SEQSEAL logo for the last 2 s.
 
 **Say** (14 words)
 
@@ -349,7 +349,7 @@ Editing rules:
 - **Cuts only.** Cut waits and page loads. Do not change what the screen shows.
 - **Speed-ups.** Only in S3 and in S7's wait, and show the factor (×3) whenever footage is sped up.
 - **Source label.** Keep it readable (top right, "Source: …") whenever deliveries are on screen.
-- **Length.** The video ends at 3:00 at most.
+- **Length.** The video must stay under 3:00 (rules: public on YouTube or Vimeo, in English, under 3 minutes). This script ends at 2:45, and judges are not required to watch beyond 3:00.
 - **Subtitles.** They are welcome; use the text of section 5.
 
 ## 5. Full narration (to record in one take)
@@ -360,19 +360,19 @@ Editing rules:
 >
 > **[S3 · 0:27]** Ring gives the checklist eyes. Here, the footage is simulated by the Ring Developer Playground. Ring records each clip as an event in its history, and SEQSEAL binds every step of the delivery to one of those events.
 >
-> **[S4 · 0:47]** The expected process is declared in PWPS. The engine lays the observed sequence over it and checks every rule deterministically: no model decides. ORDER-02 fails because Storage occurred fifty-four seconds before Staging. And every step leads back to its source: this one is a Ring history event, with its event ID, its Ring request ID and its start time.
+> **[S4 · 0:45]** The expected process is declared in PWPS. The engine lays the observed sequence over it and checks every rule deterministically: no model decides. ORDER-02 fails because Storage occurred fifty-four seconds before Staging. And every step leads back to its source: this one is a Ring history event, with its event ID, its Ring request ID and its start time.
 >
-> **[S5 · 1:15]** Verdict and action are kept apart. The engine says DEVIATED. A separate, versioned policy maps DEVIATED to HOLD, and SEALED to RELEASE. The Operational Gate then holds the receiving workflow, with a real WorkflowHeld event, not just a label.
+> **[S5 · 1:11]** Verdict and action are kept apart. The engine says DEVIATED. A separate, versioned policy maps DEVIATED to HOLD, and SEALED to RELEASE. The Operational Gate then holds the receiving workflow, with a real WorkflowHeld event, not just a label.
 >
-> **[S6 · 1:35]** Every final decision produces a SeqSeal Receipt. It links the action to the policy, the verdict, the failed rule and the Ring evidence, each with its hash. Replay verification runs it again and finds the same verdict and the same action.
+> **[S6 · 1:29]** Every final decision produces a SeqSeal Receipt. It links the action to the policy, the verdict, the failed rule and the Ring evidence, each with its hash. Replay verification runs it again and finds the same verdict and the same action.
 >
-> **[S7 · 1:55]** When Ring metadata isn't enough, an AI interpreter may propose evidence. In this test fixture it can't tell reliably whether Staging happened, so the delivery goes to review, not release. A supervisor confirms the evidence, never the outcome. The engine re-evaluates, releases the delivery, and issues a second receipt.
+> **[S7 · 1:47]** When Ring metadata isn't enough, an AI interpreter may propose evidence. In this test fixture it can't tell reliably whether Staging happened, so the delivery goes to review, not release. A supervisor confirms the evidence, never the outcome. The engine re-evaluates, releases the delivery, and issues a second receipt.
 >
-> **[S8 · 2:20]** SEQSEAL ships an event-driven AWS deployment as Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
+> **[S8 · 2:10]** SEQSEAL ships an event-driven AWS deployment as Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
 >
-> **[S9 · 2:38]** And the protocol isn't hard-coded. It's written in PWPS, our open-source Physical Workflow Protocol Specification, with a validator and conformance tests.
+> **[S9 · 2:25]** And the protocol isn't hard-coded. It's written in PWPS, our open-source Physical Workflow Protocol Specification, with a validator and conformance tests.
 >
-> **[S10 · 2:50]** Ring observes. SEQSEAL verifies whether the workflow can proceed. A checklist that can see.
+> **[S10 · 2:37]** Ring observes. SEQSEAL verifies whether the workflow can proceed. A checklist that can see.
 
 ## 6. Submission story
 
