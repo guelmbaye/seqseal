@@ -11,6 +11,7 @@ import { describe, expect, it } from "vitest";
 import type { DomainEvent } from "@seqseal/contracts";
 import { MockEvidenceInterpreter } from "@seqseal/evidence-model";
 import { InMemoryBus, loadPipelineConfig, SeqSealPipeline } from "@seqseal/pipeline";
+import { buildReplayDeliveries, ReplayScenario } from "@seqseal/ring-adapter";
 import { DynamoDocDatabase } from "../src";
 import { FakeDynamo } from "./fake-dynamo";
 
@@ -84,6 +85,39 @@ describe("parallel, at-least-once delivery (as on AWS)", () => {
     const store = r.w.pipeline().store;
     expect((await store.listDecisions(r.exec.execution_id)).filter((d) => d.final)).toHaveLength(1);
     expect(await store.listReceipts()).toHaveLength(1);
+  });
+
+  it("S7 as on AWS: ambiguous evidence goes to review; confirming it releases the delivery with a second receipt", async () => {
+    const w = world();
+    const sc = ReplayScenario.parse(JSON.parse(readFileSync(join(root, "fixtures/scenarios/ambiguous-evidence.json"), "utf8")));
+    const replay = { run_id: "run-ambiguous", scenario_id: sc.scenario_id, label: sc.label };
+    // demo-orchestrator posts the fixture's events one after the other; every stage then runs in parallel.
+    for (const d of buildReplayDeliveries(sc, { runId: replay.run_id }).filter((x) => x.phase === "main")) {
+      await w.pipeline().ingestWebhook({ rawBody: d.rawBody, profile: sc.source_profile, replay });
+      await w.drainInParallel();
+    }
+    const store = w.pipeline().store;
+    const exec = (await store.listExecutions())[0]!;
+    if (sc.finalize_at_end && exec.status === "ACTIVE") {
+      await w.pipeline().finalize(exec.execution_id, "DEADLINE_REACHED");
+      await w.drainInParallel();
+    }
+    const before = (await store.getExecution(exec.execution_id))!;
+    expect([before.latest_verdict, before.workflow_status]).toEqual(["UNCERTAIN", "REVIEW_REQUIRED"]);
+    expect((await store.listReceipts()).map((r) => [r.receipt_version, r.operational_action])).toEqual([[1, "REVIEW"]]);
+
+    // The supervisor confirms the evidence (review-api); the engine re-evaluates.
+    const candidate = (await store.listExecutionCandidates(exec.execution_id)).find((c) => c.status === "UNCERTAIN")!;
+    await w.pipeline().review({ candidate_id: candidate.candidate_id, action: "CONFIRM", reviewer_ref: "operator" });
+    await w.drainInParallel();
+
+    const after = (await store.getExecution(exec.execution_id))!;
+    expect([after.latest_verdict, after.workflow_status]).toEqual(["SEALED", "RELEASED"]);
+    const receipts = (await store.listReceipts()).map((r) => [r.receipt_version, r.operational_action]).sort();
+    expect(receipts).toEqual([
+      [1, "REVIEW"],
+      [2, "RELEASE"],
+    ]);
   });
 
   it("a finalization lease that has expired can be taken again (the holder crashed)", async () => {

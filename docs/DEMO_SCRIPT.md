@@ -13,6 +13,7 @@ What has actually been run, and what this script relies on:
 | 2026-10-20 | Every screen of this script, captured from the production build with those two sessions (the frames in `docs/demo/`) | labels and texts quoted below |
 | 2026-10-21 09:29 and 09:52 | The same two sessions replayed on AWS (Terraform deployment, us-east-1) with `pnpm replay --remote` | same results on AWS: A SEALED → RELEASE → RELEASED, B DEVIATED → HOLD → HELD; after the BN-029 fix, one receipt per delivery |
 | 2026-10-21 16:19–16:28 | Live run through the Ring Developer Playground, with the console on the AWS backend: every capture processed on the AWS deployment | EXEC-0005: SEALED → RELEASE → RELEASED<br>EXEC-0006: DEVIATED → HOLD → HELD (ORDER-02, Storage 49 s before Staging) |
+| 2026-10-21 17:05–17:13 | The same live run again on AWS, recorded for the video | EXEC-0009: SEALED → RELEASE → RELEASED<br>EXEC-0010: DEVIATED → HOLD → HELD (ORDER-02, Storage 49 s before Staging) |
 | every commit | Test fixtures (**Run deliveries A and B again**), `pnpm test:winning` (100 × A, 100 × B) and the benchmark | A released, B held |
 
 ## 1. The video at a glance
@@ -275,7 +276,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 4. Scroll back up and click the observed **STORAGE** box in **Expected versus observed**. The **STORAGE evidence** panel opens.
 5. Move the pointer down "Source event" (the Ring event id), "Request" (the Ring request id), "Ring proof: Ring history event (on_demand)…" and "Time from: Start of the Ring event", about 1.5 s each.
 
-**Say** (59 words; say the number of seconds shown in the ORDER-02 row: 54 for the 2026-10-19 run)
+**Say** (59 words; say the number of seconds shown in the ORDER-02 row: fifty-four for the 2026-10-19 run, forty-nine for the 2026-10-21 runs)
 
 > The expected process is declared in PWPS. The engine lays the observed sequence over it and checks every rule deterministically: no model decides. ORDER-02 fails because Storage occurred fifty-four seconds before Staging. And every step leads back to its source: this one is a Ring history event, with its event ID, its Ring request ID and its start time.
 
