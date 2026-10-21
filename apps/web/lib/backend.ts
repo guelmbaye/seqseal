@@ -9,6 +9,7 @@ import {
   ReadModel,
   type ApiResponse,
 } from "@seqseal/pipeline";
+import { provenanceHeaders } from "./capture-headers";
 
 /**
  * Web backend.
@@ -42,11 +43,11 @@ function local(): Local {
 
 export const backendMode = mode;
 
-async function proxy(method: string, path: string, body?: unknown): Promise<ApiResponse> {
+async function proxy(method: string, path: string, body?: unknown, extraHeaders: Record<string, string> = {}): Promise<ApiResponse> {
   if (!remoteUrl) return { status: 503, body: { error: "SEQSEAL_API_URL is not configured for remote mode" } };
   const res = await fetch(`${remoteUrl}${path}`, {
     method,
-    headers: { "content-type": "application/json", ...(method !== "GET" ? { "x-seqseal-demo-token": demoToken } : {}) },
+    headers: { "content-type": "application/json", ...extraHeaders, ...(method !== "GET" ? { "x-seqseal-demo-token": demoToken } : {}) },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
     cache: "no-store",
   });
@@ -140,7 +141,8 @@ export async function localWebhook(rawBody: string, headers: Record<string, stri
  * replayed from a saved session (scripts/replay.ts --captures); anything else is a live capture.
  */
 export async function localPlaygroundCapture(capture: unknown, headers: Record<string, string> = {}): Promise<ApiResponse> {
-  if (mode === "remote") return proxy("POST", "/integrations/ring/playground/capture", capture);
+  // Forward the provenance headers: a Ring-derived replay must stay labelled as one on AWS.
+  if (mode === "remote") return proxy("POST", "/integrations/ring/playground/capture", capture, provenanceHeaders(headers));
   const derived = headers["x-seqseal-source-profile"] === "RING_DERIVED_REPLAY";
   const run = headers["x-seqseal-replay-run"];
   const replay = derived && run ? { run_id: run, scenario_id: "ring-derived:remote", label: "Ring-derived replay" } : undefined;

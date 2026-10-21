@@ -3,6 +3,13 @@
   "version": "0.1.0",
   "description": "PWPS — Physical Workflow Protocol Specification. A vendor-neutral specification and toolchain for evidence-verifiable physical workflows.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guelmbaye/seqseal.git",
+    "directory": "packages/pwps"
+  },
+  "homepage": "https://github.com/guelmbaye/seqseal/tree/main/packages/pwps#readme",
+  "bugs": "https://github.com/guelmbaye/seqseal/issues",
   "type": "module",
   "keywords": [
     "pwps",

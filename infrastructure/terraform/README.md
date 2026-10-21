@@ -99,7 +99,7 @@ that need it refuse requests (401 or 503) instead of crashing:
 
 - **ring-webhook-signing-secret**: from the Ring app settings. If you only use the Playground (no webhooks), set a random value.
 - **ring-api-token**: only used for server-side snapshot captures. A Playground token (valid for 30 minutes) or any placeholder will do.
-- **demo-token**: a random value. Send it as `x-seqseal-demo-token` (`--token` in the scripts).
+- **demo-token**: a random value, sent as `x-seqseal-demo-token`. The scripts and the web console read it from `SEQSEAL_DEMO_TOKEN`; never pass it with `--token`, because pnpm prints the command line.
 
 bash:
 
@@ -131,9 +131,28 @@ aws secretsmanager put-secret-value --region $R --secret-id "$P/ring-api-token" 
 aws secretsmanager put-secret-value --region $R --secret-id "$P/demo-token" --secret-string $DEMO
 ```
 
-Keep `$DEMO` for the checks below. It is never written to disk.
+`$DEMO` is never written to disk. In a new shell, read the token back from Secrets Manager
+instead of copying it:
+
+```powershell
+$env:SEQSEAL_DEMO_TOKEN = aws secretsmanager get-secret-value --region us-east-1 --secret-id seqseal-demo/demo-token --query SecretString --output text
+```
 
 The ARNs are also available as `terraform output secret_arns`.
+
+### Rotate the demo token
+
+Rotate it whenever it may have been seen (a terminal shared on screen, a pasted log):
+
+```powershell
+function New-Secret { $b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); -join ($b | ForEach-Object { $_.ToString("x2") }) }
+aws secretsmanager put-secret-value --region us-east-1 --secret-id seqseal-demo/demo-token --secret-string (New-Secret)
+$env:SEQSEAL_DEMO_TOKEN = aws secretsmanager get-secret-value --region us-east-1 --secret-id seqseal-demo/demo-token --query SecretString --output text
+```
+
+The functions cache secrets for 5 minutes, so the new token is accepted everywhere within
+5 minutes, or at once after a redeploy. Restart the web console: it reads `SEQSEAL_DEMO_TOKEN`
+when it starts.
 
 ## 4. Wire it up
 
@@ -156,7 +175,7 @@ headers `content-type`, `x-seqseal-demo-token`.
 
 ## 5. Check the deployment end to end
 
-PowerShell, from the repository root, with `$DEMO` from step 3:
+PowerShell, from the repository root:
 
 ```powershell
 $API = terraform -chdir=infrastructure/terraform/environments/demo output -raw api_endpoint
@@ -164,7 +183,7 @@ Invoke-RestMethod "$API/api/status"                                   # backend 
 
 # The scripts read the demo token from this variable. Do not pass it with --token:
 # pnpm prints the full command line, token included.
-$env:SEQSEAL_DEMO_TOKEN = $DEMO
+$env:SEQSEAL_DEMO_TOKEN = aws secretsmanager get-secret-value --region us-east-1 --secret-id seqseal-demo/demo-token --query SecretString --output text
 
 # The live Ring sessions of 2026-10-19, replayed on AWS (Ring-derived replay)
 pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote $API
@@ -192,7 +211,8 @@ for it (`web_allowed_origins` is only for pages that call the API from the brows
 Then check:
 
 - **Monitoring.** In CloudWatch, the `<prefix>-source-to-action` dashboard shows invocations and no errors, and every DLQ alarm is OK.
-- **Live run.** A live run can target AWS directly: `pnpm tsx scripts\ring-spike.ts run --device $D --post $API --delivery A` (the token comes from `SEQSEAL_DEMO_TOKEN`).
+- **Live run.** With the console started on the AWS backend, keep `--post http://localhost:3000`: the console forwards each capture to the API with the demo token, and the API address never appears in the terminal. Posting straight to the API also works: `--post $API` (the token comes from `SEQSEAL_DEMO_TOKEN`).
+- **Replays through the console.** `pnpm replay --captures … --remote http://localhost:3000` keeps the Ring-derived replay label on AWS: the console forwards the provenance headers.
 - **What differs on AWS.**
   - **Clear results** only closes active demo executions; history stays.
   - The Monitor's "Replay Ring-derived session" buttons are not offered: use `pnpm replay --remote`.

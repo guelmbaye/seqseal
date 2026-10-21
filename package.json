@@ -4,6 +4,12 @@
   "private": true,
   "description": "SEQSEAL — Physical Workflow Integrity. Verify the sequence. Seal the workflow.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guelmbaye/seqseal.git"
+  },
+  "homepage": "https://github.com/guelmbaye/seqseal#readme",
+  "bugs": "https://github.com/guelmbaye/seqseal/issues",
   "type": "module",
   "packageManager": "pnpm@10.28.0",
   "engines": {

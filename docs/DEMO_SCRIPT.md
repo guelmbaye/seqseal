@@ -42,22 +42,61 @@ The frames in `docs/demo/` come from the level 2 replay (label "Ring-derived rep
   - Use a separate window, full screen (F11), at 125 % zoom.
   - Hide the bookmarks bar, close every other tab, and turn notifications off.
 - **Terminal.** Use Windows Terminal (it shows the ✓ of `pwps validate`), font size 18, in the repository folder.
-- **SEQSEAL.** Run the production build. Development mode adds a Next.js badge in a corner of every page:
+- **SEQSEAL.** Always film the production build: development mode adds a Next.js badge in a corner of every page. Build once, then start the console on the backend chosen in 2.2:
 
   ```bash
   pnpm install
-  pnpm build && pnpm --filter @seqseal/web start      # http://localhost:3000
+  pnpm build
   ```
 
-- **Determinism check.** Open http://localhost:3000 and press **Run deliveries A and B again** 10 times in a row. Each run must end with Delivery A **Unlocked** and Delivery B **Locked: Wrong order**. Then press **Clear results**.
-- **Freeze the claims.** Run `pnpm benchmark --check`, tag `evaluation-freeze`, then tag `demo-final`. Record against `demo-final`.
+- **Determinism check.** Do it on the local backend, even if you film against AWS: on AWS, each press would add two test-fixture deliveries to the history. Start the console without `SEQSEAL_BACKEND` (`pnpm --filter @seqseal/web start`), open http://localhost:3000 and press **Run deliveries A and B again** 10 times in a row. Each run must end with Delivery A **Unlocked** and Delivery B **Locked: Wrong order**. Then press **Clear results** and stop the console.
+- **Freeze the claims.** The tag `evaluation-freeze` marks the commit of the benchmark results (`pnpm benchmark --check`). Tag `demo-final` on the commit you film, and push the tag.
 
-### 2.2 Choose what data the video shows
+### 2.2 Choose the backend
+
+| Backend | What the video shows | Choose it when |
+|---|---|---|
+| AWS (preferred) | The deployed system: the System page reads "Backend: aws:demo", and the live run is processed on AWS | the rehearsal in 2.3 passes |
+| Local | The in-process pipeline: same engines, same policy, same gate | AWS is unavailable, or a rehearsal step fails |
+
+Start the console on AWS (PowerShell, from the repository root):
+
+```powershell
+$API = terraform -chdir=infrastructure/terraform/environments/demo output -raw api_endpoint
+$env:SEQSEAL_DEMO_TOKEN = aws secretsmanager get-secret-value --region us-east-1 --secret-id seqseal-demo/demo-token --query SecretString --output text
+$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API
+pnpm --filter @seqseal/web start          # http://localhost:3000
+```
+
+To film locally instead, open a new terminal (the variables above stay set in this one) and run `pnpm --filter @seqseal/web start`.
+
+The rest of this script is the same on both backends. The live run and the replays still post to http://localhost:3000. On AWS, the console forwards each capture to the API with the demo token, and keeps the Ring-derived replay label of a replay. Neither the token nor the API address appears in the terminal.
+
+What differs on AWS:
+
+- **System page.** It reads "Backend: aws:demo" and "Evidence interpreter: mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment.
+- **Clear results** only closes active demo executions, and history stays. The checklist shows the newest released and held pair, so run A and B just before filming.
+- **Replays.** The Monitor's "Replay Ring-derived session" buttons are not offered: replay from the terminal (2.6).
+- **Numbers.** Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
+- **Receipts page.** It lists every earlier run, including SSR-0001-v2 and -v3 from before the BN-029 fix. Do not film that list; open receipts from the Monitor panel, as S6 does.
+- **AWS console (S8).** Keep the account ID at the top right out of the frame.
+
+### 2.3 Rehearse on AWS
+
+Rehearse once, before the run you record. Whatever runs after A and B becomes the newest delivery and replaces them on the Checklist and Monitor pages.
+
+1. **System page.** It reads "Backend: aws:demo" and the interpreter label above. If the label is only "mock-evidence-interpreter@1", the functions predate commit 728bb86: redeploy (`infrastructure/terraform/README.md` §1–2).
+2. **The S7 flow.** Follow S7, steps 1 to 5, without recording: **Run ambiguous evidence** gives REVIEW, **Confirm evidence** gives **Unlocked** and a receipt "-v2". Allow a few seconds more than locally for each step.
+3. **A replay** (optional): replay the two saved sessions as in 2.6. Expect A **Unlocked**, B **Locked: Wrong order**, labelled "Ring-derived replay".
+
+If a step fails, film on the local backend, and record the failure in `docs/FRICTION_LOG.md` if AWS caused it. S8 stays as written: the deployment is real either way.
+
+### 2.4 Choose what data the video shows
 
 | Level | What runs | Label on screen |
 |---|---|---|
-| 1 (preferred) | A live run through the Ring Developer Playground, just before filming (2.3) | Ring Developer Playground |
-| 2 | The live run of 2026-10-19, replayed from the Monitor page (2.4) | Ring-derived replay |
+| 1 (preferred) | A live run through the Ring Developer Playground, just before filming (2.5) | Ring Developer Playground |
+| 2 | The live run of 2026-10-19, replayed (2.6) | Ring-derived replay |
 | 3 | Test fixtures (**Run deliveries A and B again**) | Test fixture (Ring-shaped replay) |
 
 Rules for the whole video:
@@ -68,7 +107,7 @@ Rules for the whole video:
   - Never say "real device" or "real camera" for Playground sources.
   - Never say Ring "detected" a vehicle, a package or motion: Ring's Playground events carry no class (FRICTION_LOG FL-006).
 
-### 2.3 Level 1: the live run, recorded for S3
+### 2.5 Level 1: the live run, recorded for S3
 
 Arrange the screen for the recording that S3 uses:
 
@@ -79,7 +118,7 @@ Then:
 
 1. Press **Clear results** on the checklist page.
 2. In the Playground, generate a token. It lasts about 30 minutes, and both deliveries took 9 minutes on 2026-10-19.
-3. In the terminal, set the token and the device id (the token is never written to disk):
+3. In a second terminal (the console keeps running in the first), set the token and the device id. The token is never written to disk:
 
    ```powershell
    $env:RING_PLAYGROUND_TOKEN = "<token>"
@@ -103,6 +142,8 @@ Delivery B (EXEC-0002): DEVIATED -> HOLD, workflow HELD.
   STORAGE occurred 54 s before required STAGING. (ORDER-02)
 ```
 
+On AWS, the execution numbers are higher: they continue from earlier runs.
+
 | Step | Click in the Playground | Delivery A | Delivery B |
 |---|---|---|---|
 | Arrival | Vehicle | 1st | 1st |
@@ -122,31 +163,25 @@ What the command guarantees:
 
 If you need to start over: press **Clear results**, delete `fixtures\ring\captures\demo-a.jsonl` and `demo-b.jsonl`, and run again. Do not reuse the names `live-2026-10-19-*`, which hold the reference run.
 
-### 2.4 Level 2: the live run of 2026-10-19, replayed
+### 2.6 Level 2: the live run of 2026-10-19, replayed
 
 1. Press **Clear results** on the checklist page.
-2. On the **Monitor** page, press **Replay Ring-derived session live-2026-10-19-a (5 captures)**, and wait about 10 s.
-3. Press **Replay Ring-derived session live-2026-10-19-b (5 captures)**, and wait about 10 s.
+2. Replay the two saved sessions, and wait about 10 s after each.
+   - **Locally:** on the **Monitor** page, press **Replay Ring-derived session live-2026-10-19-a (5 captures)**, then **… live-2026-10-19-b (5 captures)**.
+   - **On AWS:** from the terminal, through the console:
 
-If you want a clip for S3 at this level, record the screen during step 3.
+     ```powershell
+     pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote http://localhost:3000
+     pnpm replay --captures fixtures/ring/captures/live-2026-10-19-b.jsonl --remote http://localhost:3000
+     ```
 
-### 2.4b Filming against AWS (optional)
+If you want a clip for S3 at this level, record the Monitor page during the second replay.
 
-The stack is deployed (2026-10-21), so the console can run on it instead of the in-process pipeline. Start the console on the AWS backend (`infrastructure/terraform/README.md` §5): `pnpm build`, then `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL`, `SEQSEAL_DEMO_TOKEN`, then `pnpm --filter @seqseal/web start`. Point the live run at the API with `--post $API`. Set the token in `$env:SEQSEAL_DEMO_TOKEN` and never pass it with `--token`, because pnpm prints the command line.
-
-The **System** page then reads "Backend: aws:demo" and "Evidence interpreter: mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment. A few things differ from the local demo:
-
-- **Clear results** only closes active demo executions, and history stays. The checklist shows the latest released and held pair, so run A and B just before filming.
-- At level 2, replay with `pnpm replay --captures … --remote $API`, because the Monitor's replay buttons are not offered on AWS.
-- Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
-- The **Receipts** page lists every earlier run, including SSR-0001-v2 and -v3 from before the BN-029 fix. Do not film that list; open receipts from the Monitor panel, as S6 does.
-- **Keep out of the frame:** the account ID at the top right of the AWS console, and the API address, which `pnpm replay --remote` prints (pnpm echoes the command line). The live run prints "checking SEQSEAL at the AWS API" instead of the address.
-
-### 2.5 Check before filming
+### 2.7 Check before filming
 
 - **Checklist page.** It shows the level's label, Delivery A **Unlocked** and Delivery B **Locked: Wrong order**.
 - **Monitor page.** It shows Delivery B: ORDER-02 failed, DEVIATED, HOLD.
-- **Receipts page.** Locally, it lists SSR-0001 (A) and SSR-0002 (B), and nothing else. On AWS it also lists earlier runs (2.4b).
+- **Receipts page.** Locally, it lists SSR-0001 (A) and SSR-0002 (B), and nothing else. On AWS it also lists earlier runs (2.2).
 
 ## 3. Shot by shot
 
@@ -200,7 +235,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 ### S3 · 0:27–0:45 · Ring gives the checklist eyes (18 s)
 
-**Film:** nothing new. Use the recording made during the live run (2.3), cut into three pieces. Take the Staging step of Delivery A ("click PACKAGE"):
+**Film:** nothing new. Use the recording made during the live run (2.5), cut into three pieces. Take the Staging step of Delivery A ("click PACKAGE"):
 
 1. **About 4 s.** The terminal shows "Step 2 of 5, Staging: click PACKAGE in the Playground now", and the pointer clicks Package in the Playground.
 2. **About 7 s.** The Package clip plays in the Playground. If you speed it up, show the factor on screen, for example "×3".
@@ -305,7 +340,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 1. Open `docs/ARCHITECTURE.md` at **4. Runtimes › AWS** in the VS Code Markdown preview or on GitHub. Show the diagram: Ring webhook and Playground → API Gateway → EventBridge → SQS → Lambdas → DynamoDB and S3.
 2. Show the `infrastructure/terraform` folder (`main.tf`, `modules/`).
 3. In the AWS console (us-east-1), show **Lambda › Functions** filtered on `seqseal-demo` (13 functions), or the CloudWatch dashboard `seqseal-demo-source-to-action` after a run. Keep the account ID at the top right out of the frame.
-4. If the video is filmed against AWS (2.4b): show the **System** page for 2 s, "Backend: aws:demo".
+4. If the video is filmed against AWS (2.2): show the **System** page for 2 s, "Backend: aws:demo".
 
 **Say** (32 words)
 
@@ -350,7 +385,7 @@ Film in this order, then put the shots back in timeline order (S1 to S10) in the
 
 | Order | Shots | Why |
 |---|---|---|
-| 1 | S3 | Recorded during the live run (2.3) |
+| 1 | S3 | Recorded during the live run (2.5) |
 | 2 | S1, S2, S10 | The Checklist page with A and B |
 | 3 | S4, S5, S6 | Verification, Monitor and receipt of Delivery B |
 | 4 | S9, S8 | Terminal, documentation and the AWS console; they do not depend on the data |
