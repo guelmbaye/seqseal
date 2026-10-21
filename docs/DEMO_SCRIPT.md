@@ -12,6 +12,7 @@ What has actually been run, and what this script relies on:
 | 2026-10-19 15:05 | The two saved sessions `live-2026-10-19-a` and `-b`, replayed from the Monitor page and with `pnpm replay --captures` | same results, labelled Ring-derived replay; `tests/ring-live-sessions.spec.ts` pins them |
 | 2026-10-20 | Every screen of this script, captured from the production build with those two sessions (the frames in `docs/demo/`) | labels and texts quoted below |
 | 2026-10-21 09:29 and 09:52 | The same two sessions replayed on AWS (Terraform deployment, us-east-1) with `pnpm replay --remote` | same results on AWS: A SEALED → RELEASE → RELEASED, B DEVIATED → HOLD → HELD; after the BN-029 fix, one receipt per delivery |
+| 2026-10-21 16:19–16:28 | Live run through the Ring Developer Playground, with the console on the AWS backend: every capture processed on the AWS deployment | EXEC-0005: SEALED → RELEASE → RELEASED<br>EXEC-0006: DEVIATED → HOLD → HELD (ORDER-02, Storage 49 s before Staging) |
 | every commit | Test fixtures (**Run deliveries A and B again**), `pnpm test:winning` (100 × A, 100 × B) and the benchmark | A released, B held |
 
 ## 1. The video at a glance
@@ -56,7 +57,7 @@ The frames in `docs/demo/` come from the level 2 replay (label "Ring-derived rep
 
 | Backend | What the video shows | Choose it when |
 |---|---|---|
-| AWS (preferred) | The deployed system: the System page reads "Backend: aws:demo", and the live run is processed on AWS | the rehearsal in 2.3 passes |
+| AWS (preferred) | The deployed system: on the System page, the **Backend** row reads "aws:demo", and the live run is processed on AWS | the rehearsal in 2.3 passes |
 | Local | The in-process pipeline: same engines, same policy, same gate | AWS is unavailable, or a rehearsal step fails |
 
 Start the console on AWS (PowerShell, from the repository root):
@@ -74,7 +75,8 @@ The rest of this script is the same on both backends. The live run and the repla
 
 What differs on AWS:
 
-- **System page.** It reads "Backend: aws:demo" and "Evidence interpreter: mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment.
+- **System page.** In the **Verification and action** panel, the **Backend** row reads "aws:demo" and the **Evidence interpreter** row reads "mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment. In a half-width window the panels stack: scroll down to see them.
+- **No "Run deliveries A and B again" after a Ring run.** It puts test fixtures on the checklist in place of your Ring pair, and on AWS the history cannot be cleared: only a new Ring run brings a Ring pair back.
 - **Clear results** only closes active demo executions, and history stays: the checklist does not empty. It keeps the last released and held pair until the next delivery opens, then shows that delivery. So run A and B just before filming.
 - **Replays.** The Monitor's "Replay Ring-derived session" buttons are not offered: replay from the terminal (2.6).
 - **Numbers.** Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
@@ -85,9 +87,10 @@ What differs on AWS:
 
 Rehearse once, before the run you record. Whatever runs after A and B becomes the newest delivery and replaces them on the Checklist and Monitor pages.
 
-1. **System page.** It reads "Backend: aws:demo" and the interpreter label above. If the label is only "mock-evidence-interpreter@1", the functions predate commit 728bb86: redeploy (`infrastructure/terraform/README.md` §1–2).
+1. **System page.** The **Backend** row reads "aws:demo", and the interpreter row reads as above. If the interpreter is only "mock-evidence-interpreter@1", the functions predate commit 728bb86: redeploy (`infrastructure/terraform/README.md` §1–2).
 2. **The S7 flow.** Follow S7, steps 1 to 5, without recording: **Run ambiguous evidence** gives REVIEW, **Confirm evidence** gives **Unlocked** and a receipt "-v2". Allow a few seconds more than locally for each step.
-3. **A replay** (optional): replay the two saved sessions as in 2.6. Expect A **Unlocked**, B **Locked: Wrong order**, labelled "Ring-derived replay".
+
+Do not press **Run deliveries A and B again** during the rehearsal: the S7 flow is enough, and the live run (2.5) checks the rest.
 
 If a step fails, film on the local backend, and record the failure in `docs/FRICTION_LOG.md` if AWS caused it. S8 stays as written: the deployment is real either way.
 
@@ -119,10 +122,11 @@ Keep out of the recording: the Ring token, the taskbar, and the browser tabs and
 Then:
 
 1. Press **Clear results** on the checklist page. Locally the checklist empties. On AWS it keeps the previous pair, and switches to Delivery A as soon as its Arrival is accepted.
-2. Remove the session files of an earlier run, if any. The reference run is kept in `live-2026-10-19-*`, and the command would otherwise resume the old session instead of starting a new one:
+2. If an earlier run left `demo-a.jsonl` or `demo-b.jsonl` in `fixtures\ring\captures`, rename them: the command would otherwise resume the old session instead of starting a new one. Keep them, since they record a real run (use that run's date):
 
    ```powershell
-   Remove-Item fixtures\ring\captures\demo-a.jsonl, fixtures\ring\captures\demo-b.jsonl -ErrorAction SilentlyContinue
+   Move-Item fixtures\ring\captures\demo-a.jsonl fixtures\ring\captures\live-2026-10-21-a.jsonl
+   Move-Item fixtures\ring\captures\demo-b.jsonl fixtures\ring\captures\live-2026-10-21-b.jsonl
    ```
 
 3. In the Playground, generate a token. It lasts about 30 minutes, and both deliveries took 9 minutes on 2026-10-19. Then scroll the Playground to **Simulate live view event**: the Vehicle, Package and Motion buttons are there, and the token field leaves the screen.
@@ -267,7 +271,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 1. In Delivery B's panel, click **Open the full verification**. The verification page of EXEC-0002 opens: the checklist card on the left, **Operational gate** on the right.
 2. Scroll to **Expected versus observed**. The orange lines cross between STAGING and STORAGE. Hold 3 s.
-3. Scroll to **Why**. Stop the pointer on the ORDER-02 row: "FAIL — STORAGE occurred 54 s before required STAGING." Hold 3 s.
+3. Scroll to **Why**. Stop the pointer on the ORDER-02 row: "FAIL — STORAGE occurred 54 s before required STAGING." (54 s on 2026-10-19; your run shows its own number). Hold 3 s.
 4. Scroll back up and click the observed **STORAGE** box in **Expected versus observed**. The **STORAGE evidence** panel opens.
 5. Move the pointer down "Source event" (the Ring event id), "Request" (the Ring request id), "Ring proof: Ring history event (on_demand)…" and "Time from: Start of the Ring event", about 1.5 s each.
 
@@ -349,7 +353,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 1. Open `docs/ARCHITECTURE.md` at **4. Runtimes › AWS** in the VS Code Markdown preview or on GitHub. Show the diagram: Ring webhook and Playground → API Gateway → EventBridge → SQS → Lambdas → DynamoDB and S3.
 2. Show the `infrastructure/terraform` folder (`main.tf`, `modules/`).
 3. In the AWS console (us-east-1), show **Lambda › Functions** filtered on `seqseal-demo` (13 functions), or the CloudWatch dashboard `seqseal-demo-source-to-action` after a run. Keep the account ID at the top right out of the frame.
-4. If the video is filmed against AWS (2.2): show the **System** page for 2 s, "Backend: aws:demo".
+4. If the video is filmed against AWS (2.2): show the **System** page for 2 s, on the **Backend** row: "aws:demo".
 
 **Say** (32 words)
 
@@ -438,7 +442,7 @@ Editing rules:
 
 For technical judges:
 
-> Ring provides physical observations. PWPS defines expected execution. SEQSEAL builds traceable evidence and evaluates the sequence deterministically. A separate versioned policy converts the resulting verdict into an operational action. Both deliveries ran live through the Ring Developer Playground, every step bound to a Ring history event: A was released, and B was held because Storage came 54 s before Staging. SEQSEAL runs on AWS, deployed with Terraform, and the same sessions replayed there give the same verdicts and actions.
+> Ring provides physical observations. PWPS defines expected execution. SEQSEAL builds traceable evidence and evaluates the sequence deterministically. A separate versioned policy converts the resulting verdict into an operational action. Both deliveries ran live through the Ring Developer Playground, every step bound to a Ring history event: A was released, and B was held because Storage came 54 s before Staging. SEQSEAL runs on AWS, deployed with Terraform: on October 21 both deliveries ran live again, processed on the AWS deployment, with the same outcome (A released, B held, Storage 49 s before Staging).
 
 ## 7. What the judge should remember
 
