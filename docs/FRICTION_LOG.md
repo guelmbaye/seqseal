@@ -123,6 +123,22 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Suggested improvement | Document the expected latency of the history endpoint, or offer a `since` filter so polls stay small |
 | Status | Resolved by workaround |
 
+## FL-008 — Missing AWS credentials reported as an EC2 metadata network error
+
+| | |
+|---|---|
+| Date | 2026-10-21 |
+| Tool / API | Terraform AWS provider (~> 5.80) on Windows 11, PowerShell |
+| Task | First `terraform plan` of the demo environment, on a laptop where no AWS credentials were configured yet |
+| Steps | `terraform plan -out tfplan` in `infrastructure/terraform/environments/demo` |
+| Expected | A message saying that no AWS credentials or profile are configured, and how to set one |
+| Actual | "No valid credential sources found", followed by "failed to refresh cached credentials, no EC2 IMDS role found … dial tcp 169.254.169.254:80 … network unreachable". The second error points at EC2 instance metadata, which does not exist on a laptop |
+| Severity | Cosmetic |
+| Impact | About 20 minutes to recognise that the cause was simply the missing credentials |
+| Workaround | Configure a profile (`aws configure` or `aws configure sso`), set `AWS_PROFILE`, and check with `aws sts get-caller-identity` before `terraform plan` |
+| Suggested improvement | When no credential source is found outside EC2, skip the IMDS detail or list the sources tried (environment, shared config, SSO) with the command to configure one |
+| Status | Resolved |
+
 ---
 
 ## Template for the live Ring spike and AWS deployment

@@ -621,6 +621,10 @@ export class SeqSealPipeline {
   async finalize(executionId: string, reason: string): Promise<DomainEvent[]> {
     const execution = await this.store.getExecution(executionId);
     if (!execution || execution.status === "FINALIZED") return [];
+    if (!(await this.store.claimFinalization(executionId, Date.parse(this.clock())))) {
+      this.log.info("finalization_already_in_progress", { execution_id: executionId, reason });
+      return [];
+    }
     return this.evaluate(executionId, `FINALIZE:${reason}`, "FINAL");
   }
 
@@ -632,7 +636,16 @@ export class SeqSealPipeline {
     let amends: string | undefined;
     if (evaluation.mode === "FINAL") {
       const priorFinal = (await this.store.listDecisions(evaluation.execution_id)).filter((d) => d.final && d.evaluation_seq < evaluation.seq).at(-1);
-      if (priorFinal) amends = priorFinal.decision_id;
+      if (priorFinal) {
+        // An amendment must change something: same verdict on the same evidence set is the same
+        // final outcome (e.g. a duplicate finalization), not a new decision or a new receipt.
+        const prior = await this.store.getEvaluation(priorFinal.evaluation_id);
+        if (prior && prior.verdict === evaluation.verdict && prior.evidence_set_hash === evaluation.evidence_set_hash) {
+          this.log.info("final_outcome_unchanged", { evaluation_id: evaluationId, prior_decision_id: priorFinal.decision_id });
+          return [];
+        }
+        amends = priorFinal.decision_id;
+      }
     }
     const outcome = policyDecide({ evaluation, policy: this.config.policy, now: this.clock(), ...(amends ? { amends } : {}) });
     if (outcome.kind === "DEFERRED") {

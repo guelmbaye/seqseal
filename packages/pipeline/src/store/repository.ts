@@ -164,6 +164,19 @@ export class SeqSealStore {
     throw new Error(`Execution ${id}: concurrent update retries exhausted`);
   }
 
+  /**
+   * Lease on the first finalization of an execution. On AWS several Lambdas may receive a
+   * finalization request for the same execution at once (one per provisional evaluation that saw
+   * the terminal state). Only the holder of the lease finalizes; an expired lease (holder crashed)
+   * can be taken again, e.g. by the sweeper.
+   */
+  async claimFinalization(executionId: string, nowMs: number, leaseMs = 60_000): Promise<boolean> {
+    return this.ex.put(
+      { pk: `EXEC#${executionId}`, sk: "FINALIZE_LEASE", until: nowMs + leaseMs },
+      { condition: { attr: "until", op: "absentOrLt", value: nowMs } },
+    );
+  }
+
   /* ── lanes ── */
   async getActiveExecutionId(lane: string): Promise<string | undefined> {
     return (await this.cfg.get(`LANE#${lane}`, "ACTIVE"))?.execution_id as string | undefined;

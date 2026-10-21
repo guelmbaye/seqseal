@@ -32,7 +32,7 @@ Every statement SEQSEAL makes in its README, demo or submission must appear here
 | Item | Status | What is needed before claiming it |
 |---|---|---|
 | Ring production webhooks | endpoint, HMAC, envelope parsing implemented | a registered Ring app delivering to `webhook_url` |
-| AWS deployment | Terraform, bundles and handlers implemented. HCL parsed, bundles built, and routing, IAM grants and secrets checked against the real pipeline (`packages/aws/test/aws-wiring.test.ts`) | `terraform apply` in an AWS account, then the end-to-end check of `infrastructure/terraform/README.md` §5 |
+| AWS deployment | Deployed on 2026-10-21: `terraform apply` of the demo environment created 172 resources in us-east-1. The live Ring sessions of 2026-10-19, replayed on AWS, gave A SEALED → RELEASE → RELEASED and B DEVIATED → HOLD → HELD. The same run issued a duplicate receipt per delivery, since fixed (BUILD_NOTES BN-029) | redeploy the fix, then repeat the end-to-end check (`infrastructure/terraform/README.md` §5): one receipt per delivery. Then say "SEQSEAL runs on AWS" |
 | Bedrock evidence interpretation | Converse with forced tool use implemented behind `ENABLE_BEDROCK_EVIDENCE` | an enabled model and a measured run; the benchmark uses a deterministic mock |
 
 The shipped demo (**Run deliveries A and B again**) still uses test fixtures, labelled **Test fixture (Ring-shaped replay)**: it must not be described as live Ring data. Live Playground captures carry the **Ring Developer Playground** label.
