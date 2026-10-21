@@ -131,12 +131,12 @@ If you want a clip for S3 at this level, record the screen during step 3.
 
 ### 2.4b Filming against AWS (after `terraform apply`)
 
-Start the console on the AWS backend (`infrastructure/terraform/README.md` §5): `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL`, `SEQSEAL_DEMO_TOKEN`. Point the live run at the API with `--post $API --token $DEMO`.
+Start the console on the AWS backend (`infrastructure/terraform/README.md` §5): `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL`, `SEQSEAL_DEMO_TOKEN`. Point the live run at the API with `--post $API`. Set the token in `$env:SEQSEAL_DEMO_TOKEN` and never pass it with `--token`, because pnpm prints the command line.
 
 The **System** page then reads "Backend: aws:demo". A few things differ from the local demo:
 
 - **Clear results** only closes active demo executions, and history stays. The checklist shows the latest released and held pair, so run A and B just before filming.
-- At level 2, replay with `pnpm replay --captures … --remote $API --token $DEMO`, because the Monitor's replay buttons are not offered on AWS.
+- At level 2, replay with `pnpm replay --captures … --remote $API`, because the Monitor's replay buttons are not offered on AWS.
 - Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
 
 ### 2.5 Check before filming

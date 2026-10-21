@@ -82,7 +82,7 @@ RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts capture --device <id> -
 Every capture is also appended to `fixtures/ring/captures/<session>.jsonl`. Such a session can be replayed later through the normal pipeline, labelled `RING_DERIVED_REPLAY`:
 
 - from the Monitor page;
-- with `pnpm replay --captures fixtures/ring/captures/<session>.jsonl [--remote <api> --token <demo-token>]`.
+- with `pnpm replay --captures fixtures/ring/captures/<session>.jsonl [--remote <api>]`. The token comes from `SEQSEAL_DEMO_TOKEN`; avoid `--token`, because pnpm prints the command line.
 
 `discover` calls `GET /v1/users/me`, `GET /v1/devices?include=status,capabilities,location,configurations` and, per device, status, capabilities, configurations and event history. It writes the redacted responses to `fixtures/ring/spike-<timestamp>/`. The token is read from the environment and never written to disk. Record the findings in [ring-playground-observations.md](ring-playground-observations.md).
 

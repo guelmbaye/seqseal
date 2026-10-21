@@ -162,22 +162,28 @@ PowerShell, from the repository root, with `$DEMO` from step 3:
 $API = terraform -chdir=infrastructure/terraform/environments/demo output -raw api_endpoint
 Invoke-RestMethod "$API/api/status"                                   # backend aws:demo, protocol IDP-01@1.0.0
 
+# The scripts read the demo token from this variable. Do not pass it with --token:
+# pnpm prints the full command line, token included.
+$env:SEQSEAL_DEMO_TOKEN = $DEMO
+
 # The live Ring sessions of 2026-10-19, replayed on AWS (Ring-derived replay)
-pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote $API --token $DEMO
-pnpm replay --captures fixtures/ring/captures/live-2026-10-19-b.jsonl --remote $API --token $DEMO
-Start-Sleep 20
-Invoke-RestMethod "$API/api/executions" | Select-Object execution_id, verdict, action, workflow_status
+pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote $API
+pnpm replay --captures fixtures/ring/captures/live-2026-10-19-b.jsonl --remote $API
+Start-Sleep 30
+(Invoke-RestMethod "$API/api/status").counts                         # expected: executions 2, receipts 2, observations 10
+$ex = Invoke-RestMethod "$API/api/executions"                         # assign first: Windows PowerShell 5.1 does not unroll JSON arrays in a pipeline
+$ex | Format-Table execution_id, verdict, action, workflow_status, source_profiles
 # expected: one SEALED / RELEASE / RELEASED and one DEVIATED / HOLD / HELD
 
 # The web console on the AWS backend
-$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API; $env:SEQSEAL_DEMO_TOKEN = $DEMO
+$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API
 pnpm --filter @seqseal/web start                                       # http://localhost:3000
 ```
 
 Then check:
 
 - **Monitoring.** In CloudWatch, the `<prefix>-source-to-action` dashboard shows invocations and no errors, and every DLQ alarm is OK.
-- **Live run.** A live run can target AWS directly: `pnpm tsx scripts\ring-spike.ts run --device $D --post $API --token $DEMO --delivery A`.
+- **Live run.** A live run can target AWS directly: `pnpm tsx scripts\ring-spike.ts run --device $D --post $API --delivery A` (the token comes from `SEQSEAL_DEMO_TOKEN`).
 - **What differs on AWS.**
   - **Clear results** only closes active demo executions; history stays.
   - The Monitor's "Replay Ring-derived session" buttons are not offered: use `pnpm replay --remote`.

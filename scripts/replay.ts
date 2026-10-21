@@ -3,10 +3,10 @@
  *
  *   pnpm replay --scenario winning-moment          # fixtures A then B, in-process (TEST FIXTURE)
  *   pnpm replay --scenario ambiguous-evidence
- *   pnpm replay --scenario wrong-sequence --remote https://<api> --token <demo-token>
+ *   pnpm replay --scenario wrong-sequence --remote https://<api>        (token from SEQSEAL_DEMO_TOKEN)
  *
  *   pnpm replay --captures fixtures/ring/captures/<session>.jsonl
- *   pnpm replay --captures fixtures/ring/captures/<session>.jsonl --remote https://<api> --token <demo-token>
+ *   pnpm replay --captures fixtures/ring/captures/<session>.jsonl --remote https://<api>
  *       Ring-derived replay: Playground captures saved by `scripts/ring-spike.ts capture` are
  *       replayed through the normal pipeline and labelled RING_DERIVED_REPLAY (never "live").
  *
