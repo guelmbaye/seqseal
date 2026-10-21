@@ -644,7 +644,8 @@ if (cmd === "discover") {
       `  ${OK} ${label(step.state)}: Ring event ...${e.event_id.slice(-12)} ${hhmmss(e.occurred_at)}-${hhmmss(e.ended_at)} UTC${lasted}, request ${call.request_id ?? "-"}. SEQSEAL accepted it.`,
     );
     if (!executionId) {
-      for (let i = 0; i < 5 && !executionId; i++) {
+      // On AWS the delivery opens a few seconds after the capture is accepted (EventBridge, SQS, Lambda).
+      for (let i = 0; i < 15 && !executionId; i++) {
         executionId = (await openDeliveries(post, protocol.terminalStates))?.[0]?.execution_id;
         if (!executionId) await sleep(1000);
       }
@@ -652,25 +653,30 @@ if (cmd === "discover") {
     }
   }
 
-  // The verdict and the action come from SEQSEAL, not from this script.
+  // The verdict and the action come from SEQSEAL, not from this script. On AWS the stages run
+  // asynchronously: wait for the receipt, which exists only once the final decision is applied,
+  // so the line below never shows a provisional outcome.
   if (executionId) {
-    type Detail = { summary: { status: string; verdict?: string; action?: string; workflow_status: string; explanation?: string } };
+    type Detail = { summary: { status: string; verdict?: string; action?: string; workflow_status: string; explanation?: string; receipt_id?: string; system_error?: unknown } };
     let d: Detail | undefined;
-    for (let i = 0; i < 10; i++) {
+    let final = false;
+    for (let i = 0; i < 30 && !final; i++) {
       try {
         const r = await fetch(`${post}/api/executions/${encodeURIComponent(executionId)}`, { signal: AbortSignal.timeout(20_000) });
-        d = r.ok ? ((await r.json()) as Detail) : undefined;
+        d = r.ok ? ((await r.json()) as Detail) : d;
       } catch {
-        d = undefined;
+        // keep the last answer and ask again
       }
-      if (d?.summary.status !== "ACTIVE") break;
-      await sleep(2000);
+      final = !!d && d.summary.status !== "ACTIVE" && (!!d.summary.receipt_id || !!d.summary.system_error);
+      if (!final) await sleep(2000);
     }
-    if (d) {
+    if (d && final) {
       console.log(
         `\nDelivery ${delivery || ""} (${executionId}): ${d.summary.verdict ?? "-"} -> ${d.summary.action ?? "-"}, workflow ${d.summary.workflow_status}.` +
           `${d.summary.explanation ? `\n  ${d.summary.explanation}` : ""}`,
       );
+    } else {
+      console.log(`\nDelivery ${delivery || ""} (${executionId}): SEQSEAL is still processing it. Its outcome will appear on the checklist.`);
     }
   }
   console.log(`\nSaved to ${sessionFile}. Watch the checklist at ${post.includes("execute-api") ? "the web console" : post}. Replay later with: pnpm replay --captures ${sessionFile}`);

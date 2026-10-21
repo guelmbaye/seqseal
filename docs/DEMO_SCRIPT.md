@@ -75,7 +75,7 @@ The rest of this script is the same on both backends. The live run and the repla
 What differs on AWS:
 
 - **System page.** It reads "Backend: aws:demo" and "Evidence interpreter: mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment.
-- **Clear results** only closes active demo executions, and history stays. The checklist shows the newest released and held pair, so run A and B just before filming.
+- **Clear results** only closes active demo executions, and history stays: the checklist does not empty. It keeps the last released and held pair until the next delivery opens, then shows that delivery. So run A and B just before filming.
 - **Replays.** The Monitor's "Replay Ring-derived session" buttons are not offered: replay from the terminal (2.6).
 - **Numbers.** Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
 - **Receipts page.** It lists every earlier run, including SSR-0001-v2 and -v3 from before the BN-029 fix. Do not film that list; open receipts from the Monitor panel, as S6 does.
@@ -114,18 +114,27 @@ Arrange the screen for the recording that S3 uses:
 - **Left half:** the Ring Developer Playground.
 - **Right half:** the SEQSEAL checklist on top, Windows Terminal below.
 
+Keep out of the recording: the Ring token, the taskbar, and the browser tabs and toolbars (crop them in the editor if needed). Set the terminal font to 18 or more.
+
 Then:
 
-1. Press **Clear results** on the checklist page.
-2. In the Playground, generate a token. It lasts about 30 minutes, and both deliveries took 9 minutes on 2026-10-19.
-3. In a second terminal (the console keeps running in the first), set the token and the device id. The token is never written to disk:
+1. Press **Clear results** on the checklist page. Locally the checklist empties. On AWS it keeps the previous pair, and switches to Delivery A as soon as its Arrival is accepted.
+2. Remove the session files of an earlier run, if any. The reference run is kept in `live-2026-10-19-*`, and the command would otherwise resume the old session instead of starting a new one:
+
+   ```powershell
+   Remove-Item fixtures\ring\captures\demo-a.jsonl, fixtures\ring\captures\demo-b.jsonl -ErrorAction SilentlyContinue
+   ```
+
+3. In the Playground, generate a token. It lasts about 30 minutes, and both deliveries took 9 minutes on 2026-10-19. Then scroll the Playground to **Simulate live view event**: the Vehicle, Package and Motion buttons are there, and the token field leaves the screen.
+4. In a second terminal (the console keeps running in the first), set the token and the device id, then clear the screen. The token is never written to disk:
 
    ```powershell
    $env:RING_PLAYGROUND_TOKEN = "<token>"
    $D = "<Playground device id>"
+   Clear-Host
    ```
 
-4. Start the screen recording, then run the two deliveries:
+5. Start the screen recording, then run the two deliveries. Do not click inside the terminal during the run: in the classic Windows console, a click starts a selection ("Select" or "Sélection" in the title bar) and pauses the command until you press Esc.
 
    ```powershell
    pnpm tsx scripts\ring-spike.ts run --device $D --post http://localhost:3000 --delivery A
@@ -134,7 +143,7 @@ Then:
 
 For each step, the command prints which simulation to click ("Step 2 of 5, Staging: click PACKAGE in the Playground now"). Click it once in the Playground. The command waits for the Ring event, which Ring lists at the end of the clip (Vehicle about 22 s, Package about 32 s, Motion about 40 s). It then sends the capture to SEQSEAL and moves to the next step.
 
-At the end of each delivery it prints SEQSEAL's result. On 2026-10-19:
+At the end of each delivery it prints SEQSEAL's result, once the receipt exists (on AWS, a few seconds after the last step). On 2026-10-19:
 
 ```text
 Delivery A (EXEC-0001): SEALED -> RELEASE, workflow RELEASED.
