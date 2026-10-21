@@ -161,6 +161,8 @@ SEQSEAL_BACKEND=remote SEQSEAL_API_URL=<api_endpoint> SEQSEAL_DEMO_TOKEN=<token>
 
 The architecture is API Gateway, Lambda, EventBridge, SQS with DLQs, DynamoDB, S3 (SSE-KMS), Secrets Manager, per-function IAM and CloudWatch. Bedrock is optional, sits on a side branch, and is off by default. The full guide is [infrastructure/terraform/README.md](infrastructure/terraform/README.md).
 
+**Deployed and checked.** The demo environment was deployed on 2026-10-21 (us-east-1, 172 resources). The two live Ring sessions of 2026-10-19, replayed there, gave the same verdicts and actions as locally, with one receipt per delivery ([docs/CLAIMS.md](docs/CLAIMS.md)). The end-to-end check is §5 of the Terraform guide.
+
 ## What SEQSEAL is not
 
 It is not a WMS, an ERP, generic video analytics, employee surveillance, a biometric system, an access-control controller, a universal SOP engine, process mining or an AI agent platform.

@@ -191,7 +191,8 @@ async function ensureSeqseal(post: string): Promise<void> {
   const deadline = Date.now() + 60_000;
   let refused = false;
   let up = false;
-  console.log(`  checking SEQSEAL at ${post}…`);
+  // The AWS API address stays off screen: the live run may be filmed.
+  console.log(`  checking SEQSEAL at ${post.includes("execute-api") ? "the AWS API" : post}…`);
   for (let attemptNo = 0; Date.now() < deadline; attemptNo++) {
     try {
       const r = await fetch(`${post}/api/status`, { signal: AbortSignal.timeout(20_000) });

@@ -51,6 +51,13 @@ export function bedrockEnabled(env: Record<string, string | undefined> = process
   return env.BEDROCK_DISABLED !== "true" && env.ENABLE_BEDROCK_EVIDENCE === "true" && !!env.BEDROCK_EVIDENCE_MODEL_ID;
 }
 
+/** What the System page shows. The mock and the disabled interpreter never call Bedrock, and say so. */
+export function interpreterLabel(interpreter: EvidenceInterpreter): string {
+  if (interpreter instanceof MockEvidenceInterpreter) return `${interpreter.id} (fixture hints, no Bedrock call)`;
+  if (interpreter instanceof DisabledEvidenceInterpreter) return "no evidence interpreter (no Bedrock call)";
+  return interpreter.id;
+}
+
 function interpreterFor(store: S3ArtifactStore): EvidenceInterpreter {
   const modelId = process.env.BEDROCK_EVIDENCE_MODEL_ID ?? "";
   if (bedrockEnabled()) {
@@ -103,7 +110,7 @@ export async function awsRuntime(service: string, opts: AwsRuntimeOptions = {}):
   });
   const readModel = new ReadModel(pipeline.store, config, {
     backend: `aws:${process.env.SEQSEAL_ENVIRONMENT ?? "dev"}`,
-    interpreter: interpreter.id,
+    interpreter: interpreterLabel(interpreter),
     flags: {
       ENABLE_BEDROCK_EVIDENCE: bedrockEnabled(),
       BEDROCK_DISABLED: process.env.BEDROCK_DISABLED === "true",

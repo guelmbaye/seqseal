@@ -11,6 +11,7 @@ What has actually been run, and what this script relies on:
 | 2026-10-19 14:46–14:55 | Live run through the Ring Developer Playground (`ring-spike.ts run --delivery A`, then `--delivery B`). Every step is a Ring history event | A: SEALED → RELEASE<br>B: DEVIATED → HOLD (ORDER-02, Storage 54 s before Staging) |
 | 2026-10-19 15:05 | The two saved sessions `live-2026-10-19-a` and `-b`, replayed from the Monitor page and with `pnpm replay --captures` | same results, labelled Ring-derived replay; `tests/ring-live-sessions.spec.ts` pins them |
 | 2026-10-20 | Every screen of this script, captured from the production build with those two sessions (the frames in `docs/demo/`) | labels and texts quoted below |
+| 2026-10-21 09:29 and 09:52 | The same two sessions replayed on AWS (Terraform deployment, us-east-1) with `pnpm replay --remote` | same results on AWS: A SEALED → RELEASE → RELEASED, B DEVIATED → HOLD → HELD; after the BN-029 fix, one receipt per delivery |
 | every commit | Test fixtures (**Run deliveries A and B again**), `pnpm test:winning` (100 × A, 100 × B) and the benchmark | A released, B held |
 
 ## 1. The video at a glance
@@ -24,7 +25,7 @@ What has actually been run, and what this script relies on:
 | S5 | 1:11 | 18 s | Monitor: DEVIATED → policy → HOLD → WorkflowHeld | Verdict and action are separate |
 | S6 | 1:29 | 18 s | Receipt SSR-0002, **Replay verification** | Receipt, replayable |
 | S7 | 1:47 | 23 s | Ambiguous evidence: Needs review, **Confirm evidence**, Unlocked | AI can propose evidence; it cannot release |
-| S8 | 2:10 | 15 s | AWS architecture and Terraform | Event-driven AWS, no Bedrock in the decision path |
+| S8 | 2:10 | 15 s | AWS architecture, Terraform, the deployed Lambdas | Runs on AWS, no Bedrock in the decision path |
 | S9 | 2:25 | 12 s | `pnpm pwps validate`, Protocol page | PWPS, open source |
 | S10 | 2:37 | 8 s | Checklist: A unlocked, B locked | A checklist that can see |
 
@@ -129,21 +130,23 @@ If you need to start over: press **Clear results**, delete `fixtures\ring\captur
 
 If you want a clip for S3 at this level, record the screen during step 3.
 
-### 2.4b Filming against AWS (after `terraform apply`)
+### 2.4b Filming against AWS (optional)
 
-Start the console on the AWS backend (`infrastructure/terraform/README.md` §5): `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL`, `SEQSEAL_DEMO_TOKEN`. Point the live run at the API with `--post $API`. Set the token in `$env:SEQSEAL_DEMO_TOKEN` and never pass it with `--token`, because pnpm prints the command line.
+The stack is deployed (2026-10-21), so the console can run on it instead of the in-process pipeline. Start the console on the AWS backend (`infrastructure/terraform/README.md` §5): `pnpm build`, then `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL`, `SEQSEAL_DEMO_TOKEN`, then `pnpm --filter @seqseal/web start`. Point the live run at the API with `--post $API`. Set the token in `$env:SEQSEAL_DEMO_TOKEN` and never pass it with `--token`, because pnpm prints the command line.
 
-The **System** page then reads "Backend: aws:demo". A few things differ from the local demo:
+The **System** page then reads "Backend: aws:demo" and "Evidence interpreter: mock-evidence-interpreter@1 (fixture hints, no Bedrock call)": Bedrock is off on this deployment. A few things differ from the local demo:
 
 - **Clear results** only closes active demo executions, and history stays. The checklist shows the latest released and held pair, so run A and B just before filming.
 - At level 2, replay with `pnpm replay --captures … --remote $API`, because the Monitor's replay buttons are not offered on AWS.
 - Execution and receipt numbers continue from earlier runs. Follow the links on screen (**Receipt SSR-…**) rather than the numbers quoted in this script.
+- The **Receipts** page lists every earlier run, including SSR-0001-v2 and -v3 from before the BN-029 fix. Do not film that list; open receipts from the Monitor panel, as S6 does.
+- **Keep out of the frame:** the account ID at the top right of the AWS console, and the API address, which `pnpm replay --remote` prints (pnpm echoes the command line). The live run prints "checking SEQSEAL at the AWS API" instead of the address.
 
 ### 2.5 Check before filming
 
 - **Checklist page.** It shows the level's label, Delivery A **Unlocked** and Delivery B **Locked: Wrong order**.
 - **Monitor page.** It shows Delivery B: ORDER-02 failed, DEVIATED, HOLD.
-- **Receipts page.** It lists SSR-0001 (A) and SSR-0002 (B), and nothing else.
+- **Receipts page.** Locally, it lists SSR-0001 (A) and SSR-0002 (B), and nothing else. On AWS it also lists earlier runs (2.4b).
 
 ## 3. Shot by shot
 
@@ -293,7 +296,7 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 **Why last:** this test fixture becomes the newest delivery. When A and B come from Ring (levels 1 and 2), the Checklist and Monitor pages then show it instead of A and B. This was checked on 2026-10-19.
 
-**Do not say** that Bedrock made this call. In the local demo, the interpreter is a deterministic stand-in: the **System** page reads "mock-evidence-interpreter@1 (fixture hints, no Bedrock call)".
+**Do not say** that Bedrock made this call. Locally and on the AWS deployment alike, the interpreter is a deterministic stand-in: the **System** page reads "mock-evidence-interpreter@1 (fixture hints, no Bedrock call)".
 
 ### S8 · 2:10–2:25 · AWS (15 s)
 
@@ -301,15 +304,14 @@ The captions use the times on screen; test fixtures show 14:03 and 14:06.
 
 1. Open `docs/ARCHITECTURE.md` at **4. Runtimes › AWS** in the VS Code Markdown preview or on GitHub. Show the diagram: Ring webhook and Playground → API Gateway → EventBridge → SQS → Lambdas → DynamoDB and S3.
 2. Show the `infrastructure/terraform` folder (`main.tf`, `modules/`).
-3. Only after an actual `terraform apply`: show the Lambda functions or the CloudWatch dashboard in the AWS console.
+3. In the AWS console (us-east-1), show **Lambda › Functions** filtered on `seqseal-demo` (13 functions), or the CloudWatch dashboard `seqseal-demo-source-to-action` after a run. Keep the account ID at the top right out of the frame.
+4. If the video is filmed against AWS (2.4b): show the **System** page for 2 s, "Backend: aws:demo".
 
-**Say, not deployed** (33 words)
+**Say** (32 words)
 
-> SEQSEAL ships an event-driven AWS deployment as Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
+> SEQSEAL runs on AWS, deployed with Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
 
-**Say, after `terraform apply`** (29 words)
-
-> SEQSEAL runs on AWS: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
+If the stack has been destroyed before filming, skip step 3 and say instead (33 words): "SEQSEAL ships an event-driven AWS deployment as Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock."
 
 ### S9 · 2:25–2:37 · PWPS (12 s)
 
@@ -351,7 +353,7 @@ Film in this order, then put the shots back in timeline order (S1 to S10) in the
 | 1 | S3 | Recorded during the live run (2.3) |
 | 2 | S1, S2, S10 | The Checklist page with A and B |
 | 3 | S4, S5, S6 | Verification, Monitor and receipt of Delivery B |
-| 4 | S9, S8 | Terminal and documentation; they do not depend on the data |
+| 4 | S9, S8 | Terminal, documentation and the AWS console; they do not depend on the data |
 | 5 | S7 | Last: it puts a test fixture on the Checklist and Monitor pages |
 
 Editing rules:
@@ -378,7 +380,7 @@ Editing rules:
 >
 > **[S7 · 1:47]** When Ring metadata isn't enough, an AI interpreter may propose evidence. In this test fixture it can't tell reliably whether Staging happened, so the delivery goes to review, not release. A supervisor confirms the evidence, never the outcome. The engine re-evaluates, releases the delivery, and issues a second receipt.
 >
-> **[S8 · 2:10]** SEQSEAL ships an event-driven AWS deployment as Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
+> **[S8 · 2:10]** SEQSEAL runs on AWS, deployed with Terraform: each stage is a Lambda behind EventBridge and SQS. Bedrock is a side branch, and the roles that decide carry an explicit deny on Bedrock.
 >
 > **[S9 · 2:25]** And the protocol isn't hard-coded. It's written in PWPS, our open-source Physical Workflow Protocol Specification, with a validator and conformance tests.
 >
@@ -392,7 +394,7 @@ Editing rules:
 
 For technical judges:
 
-> Ring provides physical observations. PWPS defines expected execution. SEQSEAL builds traceable evidence and evaluates the sequence deterministically. A separate versioned policy converts the resulting verdict into an operational action. Both deliveries ran live through the Ring Developer Playground, every step bound to a Ring history event: A was released, and B was held because Storage came 54 s before Staging.
+> Ring provides physical observations. PWPS defines expected execution. SEQSEAL builds traceable evidence and evaluates the sequence deterministically. A separate versioned policy converts the resulting verdict into an operational action. Both deliveries ran live through the Ring Developer Playground, every step bound to a Ring history event: A was released, and B was held because Storage came 54 s before Staging. SEQSEAL runs on AWS, deployed with Terraform, and the same sessions replayed there give the same verdicts and actions.
 
 ## 7. What the judge should remember
 
@@ -410,7 +412,7 @@ For technical judges:
 | Which protocol, which policy? | The **Protocol** page. Every receipt shows both, with their hashes. |
 | What if a camera is offline? | The verdict is UNCERTAIN → REVIEW, never HOLD and never RELEASE (benchmark B08). |
 | Can a reviewer just release it? | No. Reviewers confirm or reject evidence, and the engine re-evaluates (B23, B24). |
-| Was the AI step Bedrock? | Not in the local demo: the **System** page shows the deterministic stand-in ("no Bedrock call"). On AWS, only the media interpreter may call Bedrock, and only to propose evidence. |
+| Was the AI step Bedrock? | No. Locally and on the AWS deployment (`enable_bedrock_evidence = false`), the **System** page shows the deterministic stand-in ("no Bedrock call"). When Bedrock is turned on, only the media interpreter may call it, and only to propose evidence. |
 | What does HOLD do? | It stops the receiving workflow from proceeding automatically. It does not lock doors or stop machinery. |
 | Biggest limitation? | One active delivery per lane: multi-delivery correlation is future work (BUILD_NOTES BN-015). In the Playground, the source of each step is declared by the operator. |
 | What is open source? | `packages/pwps`: spec, schema, parser, validator, canonicalizer, hash, compiler, CLI, examples and conformance tests (Apache-2.0). |

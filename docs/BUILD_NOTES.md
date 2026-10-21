@@ -284,7 +284,7 @@ A new test, run against the Terraform as written, then found five more gaps:
 
 ## BN-029 — One delivery, one final outcome, under parallel delivery
 
-**Observed (2026-10-21, first run on AWS).** The two live Ring sessions of 2026-10-19 were replayed on the deployed stack. They gave the right outcomes, A SEALED → RELEASE and B DEVIATED → HOLD, but **4 receipts for 2 executions**.
+**Observed (2026-10-21, first run on AWS).** The two live Ring sessions of 2026-10-19 were replayed on the deployed stack. They gave the right outcomes, A SEALED → RELEASE and B DEVIATED → HOLD, but **4 receipts for 2 executions**: B got one, and A got three (SSR-0001, SSR-0001-v2, SSR-0001-v3), all SEALED → RELEASE, issued within 0.5 s of each other.
 
 Locally, events are handled one at a time. On AWS, SQS and Lambda deliver them in parallel and at least once. Every provisional evaluation that sees the terminal state requests a finalization, so several requests reached `sequence-evaluator` together. Each one evaluated FINAL. Reproduced on the real pipeline over the DynamoDB adapter, one delivery got 5 FINAL evaluations and 5 final decisions. On AWS those decisions are spread over a few hundred milliseconds, so a later one becomes an "amendment" of an earlier one, and its receipt is issued as version 2 although nothing changed.
 
@@ -293,6 +293,8 @@ Locally, events are handled one at a time. On AWS, SQS and Lambda deliver them i
 - **One finalizer.** The first finalization of an execution needs a lease: a conditional write on `EXEC#<id> / FINALIZE_LEASE`, valid for 60 s. Only its holder evaluates FINAL. An expired lease (the holder crashed) can be taken again, for example by the sweeper.
 - **No empty amendment.** A FINAL evaluation with the same verdict and the same evidence-set hash as the prior final decision creates no decision, and therefore no receipt. A real amendment, after late evidence that changes the evidence set, still supersedes the earlier receipt.
 - **Pinned by a test.** `packages/aws/test/aws-concurrency.test.ts` delivers every in-flight event at once, each to its own pipeline instance, as deployed (grace 5 s). Without the fix it fails on all three cases.
+
+**Checked on AWS (2026-10-21 09:52 UTC).** After redeploying, the same two sessions were replayed again: EXEC-0003 SEALED → RELEASE with one receipt (SSR-0003), EXEC-0004 DEVIATED → HOLD with one receipt (SSR-0004). The earlier receipts stay in the history; nothing is deleted.
 
 **Why.** "Duplicates are harmless" (README) must hold under the delivery model of the deployment, not only in the in-process runtime. A receipt v2 that changes nothing would mislead a reader of the audit trail.
 

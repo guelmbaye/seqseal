@@ -139,8 +139,8 @@ The ARNs are also available as `terraform output secret_arns`.
 
 - **Ring webhook**: register `terraform output -raw webhook_url`
   (`POST /integrations/ring/webhook`).
-- **Web console**: `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL=$(terraform output -raw api_endpoint)`;
-  add the console origin to `web_allowed_origins`.
+- **Web console**: `SEQSEAL_BACKEND=remote`, `SEQSEAL_API_URL=$(terraform output -raw api_endpoint)` and
+  `SEQSEAL_DEMO_TOKEN`, then `pnpm --filter @seqseal/web start` after `pnpm build` (§5).
 - **Dashboard**: CloudWatch → Dashboards → `<prefix>-source-to-action`.
 
 | Route | Function |
@@ -170,15 +170,24 @@ $env:SEQSEAL_DEMO_TOKEN = $DEMO
 pnpm replay --captures fixtures/ring/captures/live-2026-10-19-a.jsonl --remote $API
 pnpm replay --captures fixtures/ring/captures/live-2026-10-19-b.jsonl --remote $API
 Start-Sleep 30
-(Invoke-RestMethod "$API/api/status").counts                         # expected: executions 2, receipts 2, observations 10
+(Invoke-RestMethod "$API/api/status").counts | ConvertTo-Json -Compress
+# expected on a fresh deployment: {"executions":2,"receipts":2,"observations":10}
 $ex = Invoke-RestMethod "$API/api/executions"                         # assign first: Windows PowerShell 5.1 does not unroll JSON arrays in a pipeline
 $ex | Format-Table execution_id, verdict, action, workflow_status, source_profiles
 # expected: one SEALED / RELEASE / RELEASED and one DEVIATED / HOLD / HELD
+$r = Invoke-RestMethod "$API/api/receipts"
+$r | Format-Table receipt_id, execution_id, receipt_version, verdict, operational_action
+# expected: exactly one receipt (version 1) per execution
 
-# The web console on the AWS backend
-$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API
-pnpm --filter @seqseal/web start                                       # http://localhost:3000
+# The web console on the AWS backend. Build it once (next start serves the last build);
+# the backend is chosen when the server starts, from these variables.
+pnpm build
+$env:SEQSEAL_BACKEND = "remote"; $env:SEQSEAL_API_URL = $API          # SEQSEAL_DEMO_TOKEN is already set
+pnpm --filter @seqseal/web start                                       # http://localhost:3000, System page: "Backend: aws:demo"
 ```
+
+The console calls the API from its own server, so no browser origin needs to be allowed
+for it (`web_allowed_origins` is only for pages that call the API from the browser).
 
 Then check:
 
