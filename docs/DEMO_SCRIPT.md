@@ -56,6 +56,8 @@ The frames in `docs/demo/` come from the level 2 replay (label "Ring-derived rep
 
 ### 2.2 Choose the backend
 
+The AWS environment was torn down on 2026-10-22, after the video was filmed. To film against AWS again, redeploy it first (`infrastructure/terraform/README.md` §1–3).
+
 | Backend | What the video shows | Choose it when |
 |---|---|---|
 | AWS (preferred) | The deployed system: on the System page, the **Backend** row reads "aws:demo", and the live run is processed on AWS | the rehearsal in 2.3 passes |

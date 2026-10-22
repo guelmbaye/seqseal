@@ -163,7 +163,7 @@ SEQSEAL_BACKEND=remote SEQSEAL_API_URL=<api_endpoint> SEQSEAL_DEMO_TOKEN=<token>
 
 The architecture is API Gateway, Lambda, EventBridge, SQS with DLQs, DynamoDB, S3 (SSE-KMS), Secrets Manager, per-function IAM and CloudWatch. Bedrock is optional, sits on a side branch, and is off by default. The full guide is [infrastructure/terraform/README.md](infrastructure/terraform/README.md).
 
-**Deployed and checked.** The demo environment was deployed on 2026-10-21 (us-east-1, 172 resources). The two live Ring sessions of 2026-10-19, replayed there, gave the same verdicts and actions as locally, with one receipt per delivery ([docs/CLAIMS.md](docs/CLAIMS.md)). The end-to-end check is §5 of the Terraform guide.
+**Deployed and checked.** The demo environment was deployed on 2026-10-21 (us-east-1, 172 resources). The two live Ring sessions of 2026-10-19, replayed there, gave the same verdicts and actions as locally, with one receipt per delivery ([docs/CLAIMS.md](docs/CLAIMS.md)). The end-to-end check is §5 of the Terraform guide. After the demo, the environment was torn down on 2026-10-22 (§6 of the guide) to stay within the AWS Free Tier; `terraform apply` recreates it.
 
 ## What SEQSEAL is not
 
