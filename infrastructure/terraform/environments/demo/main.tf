@@ -42,6 +42,12 @@ variable "bedrock_model_id" {
   default     = ""
 }
 
+variable "teardown" {
+  description = "true only to remove the environment: apply once, then destroy (README §6)."
+  type        = bool
+  default     = false
+}
+
 variable "enable_bedrock_evidence" {
   description = "Enable Bedrock-assisted media interpretation (never verdicts)."
   type        = bool
@@ -108,7 +114,9 @@ module "seqseal" {
   demo_mode                  = var.demo_mode
 
   # demo: protect tables from accidental destroy; secrets keep a 7-day recovery window.
+  # To remove the environment: apply, then destroy, both with -var teardown=true (README §6).
   dynamodb_deletion_protection = true
+  teardown                     = var.teardown
 }
 
 output "api_endpoint" {

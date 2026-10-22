@@ -206,8 +206,9 @@ module "secrets" {
   source = "./modules/secrets"
 
   name_prefix              = local.name_prefix
-  recovery_window_in_days  = local.is_dev ? 0 : 7
-  kms_deletion_window_days = local.is_dev ? 7 : 30
+  # teardown: delete the secrets at once and use the shortest KMS window (see README §6).
+  recovery_window_in_days  = (local.is_dev || var.teardown) ? 0 : 7
+  kms_deletion_window_days = (local.is_dev || var.teardown) ? 7 : 30
   tags                     = local.tags
 }
 
@@ -216,7 +217,7 @@ module "dynamodb" {
 
   name_prefix         = local.name_prefix
   kms_key_arn         = module.secrets.kms_key_arn
-  deletion_protection = var.dynamodb_deletion_protection
+  deletion_protection = var.dynamodb_deletion_protection && !var.teardown
   tags                = local.tags
 }
 
@@ -226,7 +227,7 @@ module "s3" {
   name_prefix   = local.name_prefix
   account_id    = data.aws_caller_identity.current.account_id
   kms_key_arn   = module.secrets.kms_key_arn
-  force_destroy = local.is_dev
+  force_destroy = local.is_dev || var.teardown
   tags          = local.tags
 }
 

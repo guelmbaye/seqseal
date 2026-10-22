@@ -118,6 +118,12 @@ variable "dynamodb_deletion_protection" {
   default     = false
 }
 
+variable "teardown" {
+  description = "Prepare for terraform destroy: turn DynamoDB deletion protection off, let the versioned artifact bucket be emptied, delete secrets without a recovery window, and use the shortest KMS deletion window. Apply once with true, then destroy with true."
+  type        = bool
+  default     = false
+}
+
 variable "ring_api_base_url" {
   description = "Ring Partner API base URL (https://developer.amazon.com/docs/ring/api-reference.html). Override if the Developer Playground uses a different host."
   type        = string

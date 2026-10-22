@@ -219,6 +219,31 @@ Then check:
   - Execution and receipt numbers continue from earlier runs.
 - **Problems.** Record every real difficulty in `docs/FRICTION_LOG.md`.
 
+## 6. Tear down
+
+The demo environment protects its data: DynamoDB deletion protection, a versioned artifact bucket, a 7-day
+recovery window on secrets and a 30-day window on the KMS key. Remove those protections in one apply, then destroy:
+
+```powershell
+cd infrastructure\terraform\environments\demo
+terraform apply -var teardown=true      # in place only; expect "0 to add, ... to change, 0 to destroy"
+terraform destroy -var teardown=true    # removes every resource of the environment
+```
+
+- **The apply** changes the four tables (deletion protection off), the bucket (`force_destroy`, so its object
+  versions are deleted with it), the three secrets (no recovery window) and the KMS key (7-day window). The Lambda
+  functions may show as updated too if the bundles were rebuilt. If the plan adds or destroys anything, stop.
+- **After the destroy**, the KMS key stays *Pending deletion* for 7 days and is then deleted; a key pending deletion
+  is not billed. The secrets are deleted at once, so a later `terraform apply` can recreate them with the same names.
+- **Check that nothing is left:**
+
+  ```powershell
+  aws resourcegroupstaggingapi get-resources --tag-filters Key=Project,Values=seqseal --region us-east-1 --query "ResourceTagMappingList[].ResourceARN"
+  ```
+
+  Only the key pending deletion should remain; the tagging API can also list a deleted resource for a short while.
+- **Credentials.** Delete the access key Terraform used once you no longer need it (IAM → Users → Security credentials).
+
 ## IAM authority table
 
 > **The Sequence Evaluator cannot invoke Bedrock: verdict authority is deterministic
@@ -314,9 +339,5 @@ Before a real deployment, also run `terraform fmt -check -recursive` and
 
 ## Teardown
 
-```bash
-cd infrastructure/terraform/environments/dev && terraform destroy
-```
-
-For demo, first set `dynamodb_deletion_protection = false` in `environments/demo/main.tf` and apply.
-Then empty the versioned artifact bucket and destroy.
+- **dev:** `terraform destroy` in `environments/dev` (no protections there).
+- **demo:** see §6: apply with `-var teardown=true`, then destroy with it.
