@@ -2,11 +2,7 @@
 
 Only friction actually encountered while building SEQSEAL is recorded here. Nothing is hypothetical.
 
-**Scope of this build.** The code was written and verified in a sandboxed environment that had no Ring Developer Playground token, no AWS credentials, and outbound network limited to package registries. Consequently:
-
-- no live Ring API call and no AWS deployment were performed in the build sandbox itself;
-- Ring entries come from the live Ring Source Spike run on the developer's machine (from FL-005);
-- entries from the first `terraform apply` must be added when that step runs (template at the end).
+**Where each entry comes from.** The code was written and verified in a sandboxed environment without Ring or AWS access. The tooling entries (FL-001 to FL-004) come from that build. The Ring entries come from the live runs on the developer's machine (FL-005 to FL-007, FL-009). The AWS entry comes from the deployment of 2026-10-21 (FL-008).
 
 Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Severity (Critical / Major / Minor / Cosmetic) · Impact · Workaround · Suggested improvement · Status.
 
@@ -134,10 +130,26 @@ Entry format: Date · Tool / API · Task · Steps · Expected · Actual · Sever
 | Expected | A message saying that no AWS credentials or profile are configured, and how to set one |
 | Actual | "No valid credential sources found", followed by "failed to refresh cached credentials, no EC2 IMDS role found … dial tcp 169.254.169.254:80 … network unreachable". The second error points at EC2 instance metadata, which does not exist on a laptop |
 | Severity | Cosmetic |
-| Impact | About 20 minutes to recognise that the cause was simply the missing credentials |
+| Impact | Time spent looking for a network problem, when the cause was simply the missing credentials |
 | Workaround | Configure a profile (`aws configure` or `aws configure sso`), set `AWS_PROFILE`, and check with `aws sts get-caller-identity` before `terraform plan` |
 | Suggested improvement | When no credential source is found outside EC2, skip the IMDS detail or list the sources tried (environment, shared config, SSO) with the command to configure one |
 | Status | Resolved |
+
+## FL-009 — The API cannot choose which Playground simulation plays
+
+| | |
+|---|---|
+| Date | 2026-10-19 |
+| Tool / API | Ring Developer Playground · Ring API live view (WHEP session) |
+| Task | Drive a whole delivery (five steps alternating Vehicle, Package and Motion) from a script, without a person clicking in the Playground |
+| Steps | Looked for a way to start a chosen simulation from the API. The API can open a live view (WHEP session) on the Playground device, but Package, Vehicle or Motion is chosen on the Playground page |
+| Expected | A request parameter, or an endpoint, that starts a chosen simulation |
+| Actual | No documented request parameter selects the simulated source. Each step needs one click in the Playground page |
+| Severity | Minor |
+| Impact | Every live delivery needs an operator clicking at the right moment. Before the guided command, runs had a step captured twice, a step captured before its click, and a session started without an Arrival (BUILD_NOTES BN-027) |
+| Workaround | `ring-spike.ts run --delivery A\|B` prints which simulation to click for each step and only accepts a Ring event that started after the instruction |
+| Suggested improvement | Let a Playground endpoint, or the live-view request, take the simulated source (`PACKAGE`, `VEHICLE`, `MOTION`), so that a delivery can be scripted and repeated in CI |
+| Status | Open; worked around |
 
 ---
 

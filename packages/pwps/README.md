@@ -29,11 +29,13 @@ AI prompts or business actions such as "hold the shipment" — those belong to t
 
 ## Quick start
 
+PWPS is not published to npm yet. From the root of this repository:
+
 ```bash
-npm install @pwps/core          # or: pnpm add @pwps/core
-npx pwps validate examples/inbound-delivery.yaml
-npx pwps hash examples/inbound-delivery.yaml
-npx pwps eval examples/inbound-delivery.yaml examples/timeline-wrong-order.json
+pnpm install
+pnpm pwps validate packages/pwps/examples/inbound-delivery.yaml
+pnpm pwps hash packages/pwps/examples/inbound-delivery.yaml
+pnpm pwps eval packages/pwps/examples/inbound-delivery.yaml packages/pwps/examples/timeline-wrong-order.json
 ```
 
 ```
