@@ -15,7 +15,6 @@ import {
 
 const here = dirname(fileURLToPath(import.meta.url));
 const examples = join(here, "..", "examples");
-const repoRoot = join(here, "..", "..", "..");
 
 describe("durations", () => {
   it.each([
@@ -103,10 +102,10 @@ describe("parser security limits", () => {
 
 describe("CLI", () => {
   const cli = join(here, "..", "src", "cli.ts");
-  const tsx = join(repoRoot, "node_modules", ".bin", "tsx");
+  // `node --import tsx` resolves tsx from the working directory: the package's own clone or the monorepo root.
   const run = (...args: string[]) => {
     try {
-      return { code: 0, out: execFileSync(tsx, [cli, ...args], { encoding: "utf8", env: { ...process.env, NO_COLOR: "1" } }) };
+      return { code: 0, out: execFileSync(process.execPath, ["--import", "tsx", cli, ...args], { encoding: "utf8", env: { ...process.env, NO_COLOR: "1" } }) };
     } catch (e) {
       const err = e as { status: number; stdout: string; stderr: string };
       return { code: err.status, out: `${err.stdout}${err.stderr}` };
