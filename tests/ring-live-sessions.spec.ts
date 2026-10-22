@@ -1,7 +1,8 @@
 /**
- * Regression on real Ring data: the two deliveries captured live through the Ring Developer
- * Playground on 2026-10-19 (`ring-spike.ts run --delivery A|B`), replayed through the normal
- * pipeline as Ring-derived replay. Every step is a Ring history event; nothing here is constructed.
+ * Regression on real Ring data: the deliveries captured live through the Ring Developer Playground
+ * (`ring-spike.ts run --delivery A|B`) on 2026-10-19, and on 2026-10-21 with every capture processed
+ * on the AWS deployment, replayed through the normal pipeline as Ring-derived replay. Every step is
+ * a Ring history event; nothing here is constructed.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -52,5 +53,32 @@ describe("live Ring Developer Playground sessions of 2026-10-19", () => {
     const d = await replay("live-2026-10-19-b");
     expect(d?.summary).toMatchObject({ verdict: "DEVIATED", action: "HOLD", workflow_status: "HELD", primary_rule: "ORDER-02" });
     expect(d?.summary.explanation).toBe("STORAGE occurred 54 s before required STAGING. (ORDER-02)");
+  });
+});
+
+describe.each([
+  ["16:19 UTC", "live-2026-10-21-a", "live-2026-10-21-b"],
+  ["17:05 UTC, filmed for the video", "live-2026-10-21-1705-a", "live-2026-10-21-1705-b"],
+])("live sessions of 2026-10-21, %s (processed live on AWS)", (_when, a, b) => {
+  it("are made only of Ring history events answered with HTTP 200, none reused", () => {
+    const ids = [...session(a), ...session(b)].map((c) => c.ring_event?.event_id);
+    expect(ids).toHaveLength(10);
+    expect(new Set(ids).size).toBe(10);
+    for (const c of [...session(a), ...session(b)]) {
+      expect(c.ring_event?.event_id).toMatch(/^ava1\.ring\.history\.event\./);
+      expect(c.api_evidence.http_status).toBe(200);
+      expect(c.api_evidence.request_id).toBeTruthy();
+    }
+  });
+
+  it("Delivery A replays to SEALED -> RELEASE -> RELEASED, as it did on AWS", async () => {
+    const d = await replay(a);
+    expect(d?.summary).toMatchObject({ verdict: "SEALED", action: "RELEASE", workflow_status: "RELEASED" });
+  });
+
+  it("Delivery B replays to DEVIATED -> HOLD on ORDER-02, Storage 49 s before Staging, as it did on AWS", async () => {
+    const d = await replay(b);
+    expect(d?.summary).toMatchObject({ verdict: "DEVIATED", action: "HOLD", workflow_status: "HELD", primary_rule: "ORDER-02" });
+    expect(d?.summary.explanation).toBe("STORAGE occurred 49 s before required STAGING. (ORDER-02)");
   });
 });

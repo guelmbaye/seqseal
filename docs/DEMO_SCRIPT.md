@@ -1,6 +1,6 @@
 # Demo script
 
-This is the shooting script for the 3-minute video. For each shot, it says what to open and click, what must be visible on screen, and the exact words to say.
+This is the shooting script for the 3-minute video, published at https://youtu.be/zPPo4muVA8w on 2026-10-22. For each shot, it says what to open and click, what must be visible on screen, and the exact words to say.
 
 The video opens with the Obvious Magic: a checklist where every box is checked and Release is still locked. It does not open with architecture, the receipt or the protocol (Master Brief §53). Every screen is the running application, and nothing on screen is staged.
 
@@ -456,7 +456,7 @@ For technical judges:
 
 | Question | Answer and where to show it |
 |---|---|
-| Is that actually Ring? | Read the source label and name the level honestly: Playground, Ring-derived replay or test fixture. At levels 1 and 2, every step is a Ring history event. The evidence drawer shows the event id, the Ring request id, "Ring proof" and "Time from". The ids of the 2026-10-19 run are in [ring-playground-observations.md](ring-playground-observations.md) §7. |
+| Is that actually Ring? | Read the source label and name the level honestly: Playground, Ring-derived replay or test fixture. At levels 1 and 2, every step is a Ring history event. The evidence drawer shows the event id, the Ring request id, "Ring proof" and "Time from". The ids of the 2026-10-19 run are in [ring-playground-observations.md](ring-playground-observations.md) §7, and those of the 2026-10-21 runs on AWS (the video) in §8. |
 | Does Ring say it was a vehicle? | No. Playground events are `on_demand`, with an empty `cv_detections`. The operator declares each step's source and zone, and the drawer says so (FRICTION_LOG FL-006). A production integration maps the Ring webhook's detection subtype through the configured mappings. |
 | Which protocol, which policy? | The **Protocol** page. Every receipt shows both, with their hashes. |
 | What if a camera is offline? | The verdict is UNCERTAIN → REVIEW, never HOLD and never RELEASE (benchmark B08). |

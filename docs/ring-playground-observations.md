@@ -222,3 +222,64 @@ The two session files were reviewed and committed as `fixtures/ring/captures/liv
 - **Replay.** `pnpm replay --captures` on each file gives the same results as the live run: A SEALED → RELEASE, and B DEVIATED → HOLD with "STORAGE occurred 54 s before required STAGING". `tests/ring-live-sessions.spec.ts` pins both results on this real data.
 - **In the web app.** The Monitor page lists both sessions and replays them as Ring-derived replay.
 
+## 8. Live deliveries processed on AWS (2026-10-21)
+
+Command: `ring-spike.ts run --delivery A`, then `--delivery B`, with `--post http://localhost:3000`. The web console ran on the AWS backend (`SEQSEAL_BACKEND=remote`) and forwarded each capture to the deployed API, which processed it on Lambda, EventBridge, SQS and DynamoDB. The results below were read back from the deployed API. There were two runs, each with its own Playground token.
+
+### 8.1 First run, 16:19–16:28 UTC
+
+**Delivery A** (session saved as `live-2026-10-21-a`, EXEC-0005):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…PITXE6PGX44M` | 16:19:21–16:19:43 | 21.8 s | `e56e7ea3-0eb0-4594-947d-847139974225` |
+| Staging | PACKAGE → staging | `…S3CPSIMX5Y45` | 16:21:01–16:21:33 | 31.7 s | `b6d7fdd6-68ae-4d49-b8d0-f7bfa13a61ae` |
+| Storage | MOTION → storage-transition | `…UPGWZ5JJDGKB` | 16:22:03–16:22:42 | 39.8 s | `e9f419de-0434-491a-a8ae-c08bc183ddca` |
+| Departure | VEHICLE → receiving-exit | `…NZ42TAJWXICW` | 16:22:59–16:23:21 | 21.8 s | `0c7aa458-c570-438e-bf7f-5226f744494f` |
+| Clear | MOTION → receiving-exit | `…RDCCFAI3NIOU` | 16:23:49–16:24:28 | 39.7 s | `261ba16d-2c44-45d9-8f39-6d5b513d0e85` |
+
+Result on AWS: **SEALED → RELEASE, workflow RELEASED**, one receipt (SSR-0005).
+
+**Delivery B** (`live-2026-10-21-b`, EXEC-0006):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…CXZVO2FRMAYQ` | 16:25:01–16:25:23 | 21.8 s | `847e2859-3785-4944-ab1a-7fec26f5cefa` |
+| Storage | MOTION → storage-transition | `…R7DY6LVV6U2F` | 16:25:36–16:26:16 | 39.7 s | `cecf9f5a-7a8c-4d09-a53b-e0bba36264d6` |
+| Staging | PACKAGE → staging | `…JIFRTZOXGMDV` | 16:26:25–16:26:57 | 31.7 s | `29518238-9713-4aee-be99-b9941cd59ee4` |
+| Departure | VEHICLE → receiving-exit | `…BDGEKIU6WBFC` | 16:27:07–16:27:29 | 21.8 s | `251e61eb-d7cf-43b2-8036-dc8f264f1427` |
+| Clear | MOTION → receiving-exit | `…MICJXDFQ7YOZ` | 16:27:44–16:28:23 | 39.7 s | `9a725741-bf41-4156-acc3-1ffead62c6e1` |
+
+Result on AWS: **DEVIATED → HOLD, workflow HELD**, one receipt (SSR-0006). "STORAGE occurred 49 s before required STAGING. (ORDER-02)"
+
+### 8.2 Second run, 17:05–17:13 UTC, filmed for the video
+
+**Delivery A** (`live-2026-10-21-1705-a`, EXEC-0009):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…URQSWOGOIET3` | 17:05:50–17:06:12 | 21.8 s | `aaa9dcce-ac20-489e-a107-d4e5a19dce80` |
+| Staging | PACKAGE → staging | `…2QW6XKJ3PU4Z` | 17:06:30–17:07:02 | 31.7 s | `b28a9618-d258-4324-8a44-9e4db50823ec` |
+| Storage | MOTION → storage-transition | `…SQFM63L524NR` | 17:07:14–17:07:54 | 39.7 s | `0e08b838-fafc-4c00-9373-abee3190a1bf` |
+| Departure | VEHICLE → receiving-exit | `…A2C3FCXB36GV` | 17:08:03–17:08:25 | 21.8 s | `70e28045-520b-4379-940c-74fb24abc52b` |
+| Clear | MOTION → receiving-exit | `…LYEU4H4GSHVE` | 17:08:37–17:09:17 | 39.7 s | `5aecc4d6-2d29-41e9-b253-c407d6e73131` |
+
+Result on AWS: **SEALED → RELEASE, workflow RELEASED**, one receipt (SSR-0009).
+
+**Delivery B** (`live-2026-10-21-1705-b`, EXEC-0010):
+
+| Step | Clicked | Ring event (end of id) | Start–end (UTC) | Clip | Ring request id |
+|---|---|---|---|---|---|
+| Arrival | VEHICLE → receiving-entry | `…3FLFGMMSNX4G` | 17:09:47–17:10:09 | 21.8 s | `a980a830-bc27-4e64-948b-5888bbe86c65` |
+| Storage | MOTION → storage-transition | `…5BABLGAUKJPY` | 17:10:22–17:11:02 | 39.7 s | `4c090544-c41f-4be9-9a8b-ba4ca0ef08f6` |
+| Staging | PACKAGE → staging | `…5FNJICFCZDVB` | 17:11:11–17:11:43 | 31.7 s | `0de55ab9-047b-4c0a-9d89-21722da3bf78` |
+| Departure | VEHICLE → receiving-exit | `…2WWKZBNOSNEZ` | 17:11:54–17:12:16 | 21.8 s | `aee51d30-fdaf-4d1b-8f13-825d33b5d284` |
+| Clear | MOTION → receiving-exit | `…PCKUC42NDAI5` | 17:12:29–17:13:09 | 39.6 s | `f7932bd9-19c3-4748-93df-224ad02769b2` |
+
+Result on AWS: **DEVIATED → HOLD, workflow HELD**, one receipt (SSR-0010). "STORAGE occurred 49 s before required STAGING. (ORDER-02)"
+
+What these runs establish:
+
+- **Live on AWS, same outcome.** On the deployed stack, under parallel and at-least-once delivery, the live deliveries gave the same verdicts and actions as the local run of 2026-10-19, with one receipt each (BUILD_NOTES BN-029).
+- **Same clip lengths.** Vehicle 21.8 s, Package 31.7 s and Motion about 39.7 s, as in §7.
+- **Files.** The four session files were reviewed and committed under the names above. Like the 2026-10-19 files, they hold the device id, the Ring event ids and times, the Ring request ids and each history item as returned, and no token or account data. `tests/ring-live-sessions.spec.ts` replays all four to the same results.

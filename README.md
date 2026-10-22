@@ -4,6 +4,8 @@
 
 *Verify the sequence. Seal the workflow.*
 
+**Demo video:** https://youtu.be/zPPo4muVA8w
+
 **Every box is checked. Release is still locked.**
 
 A receiving checklist can show ✓ Arrival ✓ Staging ✓ Storage while the dock actually did Arrival → **Storage → Staging**. Every box is checked, and the process is still wrong.
@@ -36,7 +38,7 @@ pnpm demo                      # http://localhost:3000, the full pipeline runs i
 
 The demo data is labelled **Test fixture (Ring-shaped replay)** everywhere it appears. Live Ring Playground captures show **Ring Developer Playground**, and saved Ring captures replayed later show **Ring-derived replay**. See [docs/RING_INTEGRATION.md](docs/RING_INTEGRATION.md).
 
-On 2026-10-19, both deliveries also ran live through the Ring Developer Playground. Each of their ten steps is a Ring history event, and `ring-spike.ts run --delivery A|B` captured them. A was released, and B was held on ORDER-02 (Storage 54 s before Staging). The footage is simulated by the Playground, and the operator declares each step's source and zone. Details are in [docs/ring-playground-observations.md](docs/ring-playground-observations.md) §7. Both sessions ship in `fixtures/ring/captures/live-2026-10-19-{a,b}.jsonl`. They replay from the Monitor page, or with `pnpm replay --captures`, as **Ring-derived replay**, to the same result. On 2026-10-21, both deliveries ran live again with every capture processed on the AWS deployment: A was released, and B was held (Storage 49 s before Staging).
+On 2026-10-19, both deliveries also ran live through the Ring Developer Playground. Each of their ten steps is a Ring history event, and `ring-spike.ts run --delivery A|B` captured them. A was released, and B was held on ORDER-02 (Storage 54 s before Staging). The footage is simulated by the Playground, and the operator declares each step's source and zone. Details are in [docs/ring-playground-observations.md](docs/ring-playground-observations.md) §7. Both sessions ship in `fixtures/ring/captures/live-2026-10-19-{a,b}.jsonl`. They replay from the Monitor page, or with `pnpm replay --captures`, as **Ring-derived replay**, to the same result. On 2026-10-21, both deliveries ran live again, twice, with every capture processed on the AWS deployment: A was released, and B was held (Storage 49 s before Staging). Those sessions ship as `live-2026-10-21-{a,b}.jsonl` and `live-2026-10-21-1705-{a,b}.jsonl` (the run in the video), with their Ring ids in [docs/ring-playground-observations.md](docs/ring-playground-observations.md) §8.
 
 Without a browser:
 
