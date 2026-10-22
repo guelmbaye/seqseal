@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { hhmmss, upper } from "@/lib/client";
-import { ringProof } from "@/lib/provenance";
+import { operatorBinding, ringProof } from "@/lib/provenance";
 import { SOURCE_LABEL, type ExecutionDetail, type ProtocolView } from "@/lib/types";
 import type { LaneStep } from "./SequenceLanes";
 
@@ -26,6 +26,7 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
   const failed = rules.find((r) => r.status === "FAIL");
   const action = detail.workflow?.status;
   const proof = ringProof(obs?.attributes as Record<string, unknown> | undefined);
+  const binding = operatorBinding(src?.simulation_source, obs?.logical_zone ?? candidate?.logical_zone);
 
   return (
     <>
@@ -91,7 +92,9 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
           {src?.simulation_source && (
             <>
               <dt>Playground source</dt>
-              <dd>{src.simulation_source}</dd>
+              <dd>
+                {src.simulation_source} <span className="muted">(declared by the operator)</span>
+              </dd>
             </>
           )}
           <dt>Event type</dt>
@@ -113,6 +116,11 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
             {proof.note}
           </p>
         )}
+        {binding && (
+          <p className="notice small" style={{ marginTop: 14 }}>
+            {binding}
+          </p>
+        )}
 
         <h3 style={{ marginTop: 22 }}>What SEQSEAL derived</h3>
         <dl className="kv" style={{ marginTop: 10 }}>
@@ -120,6 +128,7 @@ export function EvidenceDrawer({ detail, protocol, step, onClose }: { detail: Ex
           <dd>
             {obs?.logical_zone ?? candidate?.logical_zone ?? "—"}
             {obs?.binding_id ? <span className="muted"> via {obs.binding_id}</span> : null}
+            {src?.simulation_source ? <span className="muted"> (zone declared by the operator)</span> : null}
           </dd>
           <dt>Interpretation</dt>
           <dd>

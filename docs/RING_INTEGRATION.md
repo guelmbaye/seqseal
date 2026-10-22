@@ -67,7 +67,9 @@ The Ring Developer Playground offers simulated live-view sources (Package, Vehic
 - `api_evidence`: the Ring API call actually made (method, endpoint, HTTP status, request id, response excerpt). A capture without a 2xx Ring call is refused, so no provenance is invented. If no new history event appears within 60 s, the capture falls back to a status probe and records that;
 - optional `device_id`, `component_id`, `media_session_ref`.
 
-The observation type is `live_view_simulation`; the Ring event type (for example `on_demand`) is kept in its attributes. Bindings `BIND-PG-*` match on the declared `session_zone`, and mappings `MAP-PG-*` map VEHICLE / PACKAGE / MOTION in that zone to a state. The evidence drawer discloses that the zone was operator-declared.
+The observation type is `live_view_simulation`; the Ring event type (for example `on_demand`) is kept in its attributes. Bindings `BIND-PG-*` match on the declared `session_zone`, and mappings `MAP-PG-*` map VEHICLE / PACKAGE / MOTION in that zone to a state. The evidence drawer discloses that the source and the zone were declared by the operator.
+
+**Who decides what.** The operator binds each newly captured Playground event to its simulation and dock zone, because the Playground does not classify the footage. The operator never chooses the verdict or the action: the sequence verification, and then RELEASE or HOLD, are computed automatically from the captured Ring event timestamps.
 
 ```bash
 RING_PLAYGROUND_TOKEN=… pnpm tsx scripts/ring-spike.ts discover

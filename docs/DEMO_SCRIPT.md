@@ -459,7 +459,8 @@ For technical judges:
 | Question | Answer and where to show it |
 |---|---|
 | Is that actually Ring? | Read the source label and name the level honestly: Playground, Ring-derived replay or test fixture. At levels 1 and 2, every step is a Ring history event. The evidence drawer shows the event id, the Ring request id, "Ring proof" and "Time from". The ids of the 2026-10-19 run are in [ring-playground-observations.md](ring-playground-observations.md) §7, and those of the 2026-10-21 runs on AWS (the video) in §8. |
-| Does Ring say it was a vehicle? | No. Playground events are `on_demand`, with an empty `cv_detections`. The operator declares each step's source and zone, and the drawer says so (FRICTION_LOG FL-006). A production integration maps the Ring webhook's detection subtype through the configured mappings. |
+| Does Ring say it was a vehicle? | No. Playground events are `on_demand`, with an empty `cv_detections`. The operator binds each Ring event to its simulation and dock zone, and the evidence drawer says so (FRICTION_LOG FL-006). A production integration maps the Ring webhook's detection subtype through the configured mappings. |
+| Did a person make up the result? | No. The operator only binds each fresh Ring event to the simulation they were told to click and its dock zone; each event can be used once. The verdict and the action are computed automatically from the Ring event timestamps, by the engine and the versioned policy. |
 | Which protocol, which policy? | The **Protocol** page. Every receipt shows both, with their hashes. |
 | What if a camera is offline? | The verdict is UNCERTAIN → REVIEW, never HOLD and never RELEASE (benchmark B08). |
 | Can a reviewer just release it? | No. Reviewers confirm or reject evidence, and the engine re-evaluates (B23, B24). |

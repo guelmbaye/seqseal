@@ -38,3 +38,16 @@ export function ringProof(attributes: Record<string, unknown> | undefined): Ring
     note: "Ring's event history did not list this simulation. The Ring API answered for this device when the step was captured, but this record does not prove that the simulation itself ran. The step's time is the capture time.",
   };
 }
+
+/**
+ * Who decided what for a Ring Developer Playground step. The Playground does not classify its
+ * footage, so the operator binds each Ring event to a simulation and a dock zone; the verdict and
+ * the action are never the operator's.
+ */
+export function operatorBinding(simulationSource: string | undefined, zone: string | undefined): string | undefined {
+  if (!simulationSource) return undefined;
+  return (
+    `The Ring Developer Playground does not classify its footage, so the operator bound this Ring event to the ${simulationSource} simulation` +
+    `${zone ? ` and the ${zone} zone` : ""}. The operator does not choose the verdict or the action: SEQSEAL computes both from the order and times of the steps.`
+  );
+}

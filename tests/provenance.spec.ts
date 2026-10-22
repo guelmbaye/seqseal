@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ringProof } from "../apps/web/lib/provenance";
+import { operatorBinding, ringProof } from "../apps/web/lib/provenance";
 
 const dev = "ava1.ring.device.DJXHOX5NRJIDNGWFTA74YI45P4WJGLK6GPLAWU7HA7YHPDVQ4LRHUL2J4ZZK6FUOLZPKQSHJKXRNK2VYXYIPD4N5ZJIKO3RA";
 
@@ -34,5 +34,16 @@ describe("Ring proof shown in the evidence drawer", () => {
   it("stays silent for sources that are not Playground captures", () => {
     expect(ringProof(undefined)).toBeUndefined();
     expect(ringProof({ subtype_source: "data.subType" })).toBeUndefined();
+  });
+});
+
+describe("who decided what for a Playground step", () => {
+  it("says the operator bound the Ring event to a simulation and zone, never the verdict or the action", () => {
+    expect(operatorBinding("MOTION", "storage-transition")).toBe(
+      "The Ring Developer Playground does not classify its footage, so the operator bound this Ring event to the MOTION simulation and the storage-transition zone. The operator does not choose the verdict or the action: SEQSEAL computes both from the order and times of the steps.",
+    );
+  });
+  it("says nothing for sources the operator did not bind (webhooks, fixtures)", () => {
+    expect(operatorBinding(undefined, "staging")).toBeUndefined();
   });
 });
